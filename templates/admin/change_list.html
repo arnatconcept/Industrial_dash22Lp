@@ -1,0 +1,43 @@
+{% extends "admin/change_list.html" %}
+{% load static i18n admin_list %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin_custom/styles.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+
+    {# Barra de herramientas #}
+    <div class="object-tools">
+      {% block object-tools %}
+        {{ block.super }}
+      {% endblock %}
+    </div>
+
+    {# Filtros horizontales #}
+    {% if cl.has_filters %}
+      <div id="changelist-filter" class="filter-horizontal-container" role="region" aria-label="{% translate 'Filter' %}">
+        <h2>{% translate 'Filter' %}</h2>
+        <div class="filter-horizontal">
+          {% for spec in cl.filter_specs %}
+            <div class="filter-group">
+              {% admin_list_filter cl spec %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {# Tabla principal #}
+    {% block result_list %}
+      {{ block.super }}
+    {% endblock %}
+
+    {# Paginación una sola vez debajo de la tabla #}
+    {% block pagination %}
+      {{ block.super }}
+    {% endblock %}
+  </div>
+{% endblock %}
