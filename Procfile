@@ -1,1 +1,1 @@
-web: gunicorn autotask_backend.wsgi:application --log-file -
+gunicorn autotask_backend.wsgi:application
