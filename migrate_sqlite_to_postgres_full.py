@@ -84,7 +84,7 @@ def main():
         'Proveedor', 'PLC', 'PLCEntradaSalida'
     ]
     for model_name in main_models:
-        model = apps.get_model('autotask_backend', model_name)
+        model = apps.get_model('api', model_name)
         migrate_model_data(model)
 
     print("📦 Migrando modelos dependientes...")
@@ -95,13 +95,13 @@ def main():
         'InspeccionEjecucion', 'ResultadoInspeccion'
     ]
     for model_name in dependent_models:
-        model = apps.get_model('autotask_backend', model_name)
+        model = apps.get_model('api', model_name)
         migrate_model_data(model)
 
     print("📦 Migrando relaciones ManyToMany...")
     m2m_models = ['OrdenMantenimiento']
     for model_name in m2m_models:
-        model = apps.get_model('autotask_backend', model_name)
+        model = apps.get_model('api', model_name)
         migrate_many_to_many(model)
 
     print("🎉 Migración completa!")
