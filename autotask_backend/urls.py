@@ -6,11 +6,15 @@ from django.conf import settings
 from django.conf.urls.static import static
 from api.views import MobileMotorList, MobileOrdenesAsignadas
 from api.admin import custom_admin_site
+from django.shortcuts import redirect
 
 # Importar drf_yasg para documentación
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+
+def redirect_to_docs(request):
+    return redirect("/swagger/")
 
 # Configurar el schema view para la documentación
 schema_view = get_schema_view(
@@ -27,6 +31,7 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    path("", redirect_to_docs),
     path('admin/', custom_admin_site.urls),
     path('api/', include('api.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
