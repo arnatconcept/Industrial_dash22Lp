@@ -1,1 +1,1 @@
-gunicorn autotask_backend.wsgi:application
+web: gunicorn autotask_backend.wsgi:application
