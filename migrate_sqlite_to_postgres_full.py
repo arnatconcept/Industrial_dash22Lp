@@ -6,7 +6,7 @@ from django.apps import apps
 from django.conf import settings
 
 # ===== CONFIG DJANGO =====
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "autotask_backend.settings")  # <-- cambia si tu settings.py está en otro lugar
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "autotask_backend.settings")  # ajusta si tu settings.py está en otra carpeta
 django.setup()
 
 # ===== SQLITE CONFIG =====
@@ -15,8 +15,10 @@ sqlite_conn = sqlite3.connect(SQLITE_PATH)
 sqlite_cursor = sqlite_conn.cursor()
 
 # ===== POSTGRES CONFIG =====
-# Usa la External Database URL de Render (la que dice "Connect from services outside of Render")
-PG_URL = os.environ.get("DATABASE_URL", "postgresql://db_maintech_user:zQq6DoJpvLUwI8SyqYjTC8iL28HmVS2a@dpg-d2h5pqvdiees73e6ekjg-a.oregon-postgres.render.com/db_maintech")
+PG_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://db_maintech_user:zQq6DoJpvLUwI8SyqYjTC8iL28HmVS2a@dpg-d2h5pqvdiees73e6ekjg-a.oregon-postgres.render.com/db_maintech"
+)
 pg_conn = psycopg2.connect(PG_URL)
 pg_cursor = pg_conn.cursor()
 
@@ -54,8 +56,31 @@ def main():
     os.system("python manage.py migrate --noinput")
 
     print("📦 Migrando datos de SQLite a Postgres...")
+
+    # Desactivar temporalmente FK en Postgres
+    pg_cursor.execute("SET session_replication_role = 'replica';")
+
+    # Detectar tablas maestras (sin FK)
+    master_models = []
+    dependent_models = []
+
     for model in apps.get_models():
+        has_fk = any(f.is_relation and f.many_to_one and not f.auto_created for f in model._meta.fields)
+        if has_fk:
+            dependent_models.append(model)
+        else:
+            master_models.append(model)
+
+    # Migrar primero las tablas maestras
+    for model in master_models:
         migrate_model(model)
+
+    # Después migrar las dependientes
+    for model in dependent_models:
+        migrate_model(model)
+
+    # Reactivar FK
+    pg_cursor.execute("SET session_replication_role = 'origin';")
 
     print("🎉 Migración completa!")
 
