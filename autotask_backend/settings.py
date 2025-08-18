@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 import dj_database_url
@@ -89,12 +90,28 @@ WSGI_APPLICATION = 'autotask_backend.wsgi.application'
 #    }
 #}
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),  # Lee la URL de la variable de entorno
-        conn_max_age=600  # Mejora el rendimiento de conexión
-    )
-}
+#DATABASES = {
+#    'default': dj_database_url.config(
+#        default=os.getenv('DATABASE_URL'),  # Lee la URL de la variable de entorno
+#        conn_max_age=600  # Mejora el rendimiento de conexión
+#    )
+#}
+
+if 'dumpdata' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    # Tu configuración actual con dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv('DATABASE_URL', 'sqlite:///' + str(BASE_DIR / 'db.sqlite3')),
+            conn_max_age=600
+        )
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
