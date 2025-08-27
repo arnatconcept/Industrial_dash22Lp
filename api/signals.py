@@ -1,7 +1,10 @@
+# signals.py
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from .models import Motor, Variador, Reparacion, OrdenMantenimiento, HistorialMantenimiento
+from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
+from .models import Motor, Variador, Reparacion, OrdenMantenimiento, HistorialMantenimiento, ResultadoInspeccion
+from .services.notification_service import NotificationService
 
 @receiver(pre_save, sender=Motor)
 @receiver(pre_save, sender=Variador)
@@ -10,8 +13,10 @@ def track_ubicacion_change(sender, instance, **kwargs):
         try:
             old_instance = sender.objects.get(pk=instance.pk)
             instance._old_ubicacion_tipo = old_instance.ubicacion_tipo
+            instance._old_estado = old_instance.estado
         except ObjectDoesNotExist:
             instance._old_ubicacion_tipo = None
+            instance._old_estado = None
 
 @receiver(post_save, sender=Motor)
 @receiver(post_save, sender=Variador)
@@ -22,9 +27,14 @@ def crear_evento_ubicacion(sender, instance, created, **kwargs):
         descripcion = f"Creación de {tipo} {instance.codigo}"
         tipo_evento = 'instalacion'
     else:
+        # Verificar cambio de ubicación
         if hasattr(instance, '_old_ubicacion_tipo') and instance._old_ubicacion_tipo != instance.ubicacion_tipo:
             descripcion = f"Cambio de ubicación: {instance.get_ubicacion_tipo_display()}"
             tipo_evento = 'movimiento'
+        # Verificar cambio de estado
+        elif hasattr(instance, '_old_estado') and instance._old_estado != instance.estado:
+            descripcion = f"Cambio de estado: {instance.get_estado_display()}"
+            tipo_evento = 'mantenimiento'
         else:
             return
     
@@ -51,15 +61,44 @@ def crear_evento_reparacion(sender, instance, created, **kwargs):
     )
 
 @receiver(post_save, sender=OrdenMantenimiento)
-def crear_evento_orden(sender, instance, created, **kwargs):
+def manejar_notificaciones_orden(sender, instance, created, **kwargs):
+    """Maneja notificaciones automáticas para órdenes de trabajo"""
+    service = NotificationService()
+    
+    if created:
+        # Nueva orden creada
+        transaction.on_commit(
+            lambda: service.notificar_nueva_orden(instance.id)
+        )
+    else:
+        # Orden modificada - verificar cambio de estado
+        if 'estado' in kwargs.get('update_fields', []):
+            # Obtener usuario que hizo el cambio
+            usuario_cambio_id = getattr(instance, '_current_user_id', None)
+            if usuario_cambio_id:
+                transaction.on_commit(
+                    lambda: service.notificar_cambio_estado_orden(instance.id, usuario_cambio_id)
+                )
+    
+    # Crear evento de historial
     if created:
         descripcion = f"Orden de mantenimiento creada: {instance.titulo}"
         tipo_evento = 'mantenimiento'
         
         for equipo in instance.equipos.all():
             HistorialMantenimiento.objects.create(
-                equipo_tipo='motor',
+                equipo_tipo='equipo',
                 equipo_id=equipo.id,
+                tipo_evento=tipo_evento,
+                descripcion=descripcion,
+                usuario=instance.creado_por,
+                orden=instance
+            )
+        
+        for motor in instance.motores.all():
+            HistorialMantenimiento.objects.create(
+                equipo_tipo='motor',
+                equipo_id=motor.id,
                 tipo_evento=tipo_evento,
                 descripcion=descripcion,
                 usuario=instance.creado_por,
@@ -74,4 +113,17 @@ def crear_evento_orden(sender, instance, created, **kwargs):
                 descripcion=descripcion,
                 usuario=instance.creado_por,
                 orden=instance
+            )
+
+@receiver(post_save, sender=ResultadoInspeccion)
+def manejar_alerta_inspeccion(sender, instance, created, **kwargs):
+    """Maneja alertas automáticas de inspecciones"""
+    if created:
+        service = NotificationService()
+        desvio = abs(instance.valor_medido - instance.variable.valor_referencia)
+        
+        # Solo notificar si está fuera de tolerancia
+        if desvio > instance.variable.tolerancia:
+            transaction.on_commit(
+                lambda: service.notificar_alerta_inspeccion(instance.id)
             )

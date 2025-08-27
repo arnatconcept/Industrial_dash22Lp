@@ -1,0 +1,326 @@
+INFO 2025-08-20 17:48:44,595 autoreload Watching for file changes with StatReloader
+INFO 2025-08-20 17:51:45,212 autoreload Watching for file changes with StatReloader
+INFO 2025-08-20 17:53:51,513 autoreload Watching for file changes with StatReloader
+INFO 2025-08-20 17:56:14,229 basehttp "GET /admin/api/notificaciones HTTP/1.1" 302 0
+INFO 2025-08-20 17:56:15,001 basehttp "GET /admin/login/?next=/admin/api/notificaciones HTTP/1.1" 200 3829
+INFO 2025-08-20 17:56:16,617 basehttp "GET /static/admin/css/login.css HTTP/1.1" 200 958
+INFO 2025-08-20 17:56:29,248 basehttp "POST /admin/login/?next=/admin/api/notificaciones HTTP/1.1" 302 0
+WARNING 2025-08-20 17:56:29,446 log Not Found: /admin/api/notificaciones
+WARNING 2025-08-20 17:56:29,502 basehttp "GET /admin/api/notificaciones HTTP/1.1" 404 6846
+INFO 2025-08-20 17:56:43,245 basehttp "GET /admin/ HTTP/1.1" 200 15293
+INFO 2025-08-20 17:56:43,478 basehttp "GET /static/admin/css/dashboard.css HTTP/1.1" 200 441
+WARNING 2025-08-20 17:56:43,884 log Not Found: /favicon.ico
+INFO 2025-08-20 17:56:43,894 basehttp - Broken pipe from ('127.0.0.1', 59096)
+INFO 2025-08-20 18:02:44,815 autoreload C:\Users\Ary\Documents\ejempy\autotask_backend\api\admin_config.py changed, reloading.
+INFO 2025-08-20 18:03:13,475 autoreload Watching for file changes with StatReloader
+INFO 2025-08-20 18:04:47,992 autoreload C:\Users\Ary\Documents\ejempy\autotask_backend\api\admin_config.py changed, reloading.
+INFO 2025-08-20 18:05:06,388 autoreload Watching for file changes with StatReloader
+INFO 2025-08-20 18:06:55,264 autoreload Watching for file changes with StatReloader
+INFO 2025-08-20 18:07:17,759 basehttp "GET /admin/ HTTP/1.1" 200 17999
+INFO 2025-08-20 18:07:18,851 basehttp "GET /static/admin/css/dashboard.css HTTP/1.1" 304 0
+INFO 2025-08-20 18:07:31,265 basehttp "GET /admin/api/historialcambioorden/ HTTP/1.1" 200 24808
+INFO 2025-08-20 18:07:32,248 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 8121
+INFO 2025-08-20 18:07:33,649 basehttp - Broken pipe from ('127.0.0.1', 57409)
+INFO 2025-08-20 18:07:38,816 basehttp "GET /admin/api/ HTTP/1.1" 200 14716
+ERROR 2025-08-20 18:07:47,405 log Internal Server Error: /admin/api/notificacionapp/
+Traceback (most recent call last):
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 328, in execute
+    return super().execute(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: app_notificaciones
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\options.py", line 688, in wrapper
+    return self.admin_site.admin_view(view)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\utils\decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\views\decorators\cache.py", line 62, in _wrapper_view_func
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\sites.py", line 242, in inner
+    return view(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\utils\decorators.py", line 46, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\utils\decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\options.py", line 1926, in changelist_view
+    cl = self.get_changelist_instance(request)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\options.py", line 836, in get_changelist_instance
+    return ChangeList(
+           ^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\views\main.py", line 123, in __init__
+    self.get_results(request)
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\views\main.py", line 279, in get_results
+    result_count = paginator.count
+                   ^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\utils\functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\core\paginator.py", line 93, in count
+    return c()
+           ^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\models\query.py", line 608, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\models\sql\query.py", line 568, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\models\sql\query.py", line 554, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 102, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 328, in execute
+    return super().execute(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.OperationalError: no such table: app_notificaciones
+ERROR 2025-08-20 18:07:47,687 basehttp "GET /admin/api/notificacionapp/ HTTP/1.1" 500 196538
+INFO 2025-08-20 19:12:34,521 basehttp "GET /admin/ HTTP/1.1" 200 17999
+INFO 2025-08-20 19:12:35,437 basehttp "GET /static/admin/css/dashboard.css HTTP/1.1" 304 0
+INFO 2025-08-20 19:12:49,186 basehttp "GET /admin/api/plc/ HTTP/1.1" 200 14087
+INFO 2025-08-20 19:12:49,436 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 8121
+WARNING 2025-08-20 19:12:49,613 log Not Found: /favicon.ico
+INFO 2025-08-20 19:12:49,634 basehttp - Broken pipe from ('127.0.0.1', 64802)
+INFO 2025-08-20 19:12:59,341 basehttp "GET /admin/api/ HTTP/1.1" 200 14716
+ERROR 2025-08-20 19:13:02,457 log Internal Server Error: /admin/api/dispositivoapp/
+Traceback (most recent call last):
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 328, in execute
+    return super().execute(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: app_dispositivos
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\options.py", line 688, in wrapper
+    return self.admin_site.admin_view(view)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\utils\decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\views\decorators\cache.py", line 62, in _wrapper_view_func
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\sites.py", line 242, in inner
+    return view(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\utils\decorators.py", line 46, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\utils\decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\options.py", line 1926, in changelist_view
+    cl = self.get_changelist_instance(request)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\options.py", line 836, in get_changelist_instance
+    return ChangeList(
+           ^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\views\main.py", line 123, in __init__
+    self.get_results(request)
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\contrib\admin\views\main.py", line 279, in get_results
+    result_count = paginator.count
+                   ^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\utils\functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\core\paginator.py", line 93, in count
+    return c()
+           ^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\models\query.py", line 608, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\models\sql\query.py", line 568, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\models\sql\query.py", line 554, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 102, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Ary\Documents\ejempy\autotask_backend\venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 328, in execute
+    return super().execute(query, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.OperationalError: no such table: app_dispositivos
+ERROR 2025-08-20 19:13:02,497 basehttp "GET /admin/api/dispositivoapp/ HTTP/1.1" 500 196238
+INFO 2025-08-20 19:13:07,623 basehttp "GET /admin/api/ HTTP/1.1" 200 14716
+INFO 2025-08-20 19:13:09,503 basehttp "GET /admin/api/plcentradasalida/ HTTP/1.1" 200 14166
+INFO 2025-08-20 19:13:09,715 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 8121
+INFO 2025-08-20 19:13:15,642 basehttp "GET /admin/api/ HTTP/1.1" 200 14716
+INFO 2025-08-20 19:13:22,556 basehttp "GET /admin/api/historialcambioorden/ HTTP/1.1" 200 24808
+INFO 2025-08-20 19:13:22,815 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 8121
+WARNING 2025-08-20 19:13:22,955 log Not Found: /favicon.ico
+INFO 2025-08-20 19:13:22,958 basehttp - Broken pipe from ('127.0.0.1', 64806)
+INFO 2025-08-20 19:13:26,003 basehttp "GET /admin/api/ HTTP/1.1" 200 14716
+WARNING 2025-08-20 19:13:26,339 log Not Found: /favicon.ico
+INFO 2025-08-20 19:13:26,347 basehttp - Broken pipe from ('127.0.0.1', 64807)
+INFO 2025-08-20 19:13:28,298 basehttp "GET /admin/api/historialmantenimiento/ HTTP/1.1" 200 14499
+INFO 2025-08-20 19:13:28,495 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 8121
+INFO 2025-08-20 19:13:32,626 basehttp "GET /admin/api/ HTTP/1.1" 200 14716
+INFO 2025-08-20 19:13:41,346 basehttp "GET /admin/api/evento/ HTTP/1.1" 200 31472
+INFO 2025-08-20 19:13:41,567 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 8121
+WARNING 2025-08-20 19:13:41,719 log Not Found: /favicon.ico
+INFO 2025-08-20 19:13:41,723 basehttp - Broken pipe from ('127.0.0.1', 64814)
+INFO 2025-08-20 19:13:54,139 basehttp "GET /admin/api/ HTTP/1.1" 200 14716
+INFO 2025-08-26 18:50:37,540 autoreload Watching for file changes with StatReloader
+INFO 2025-08-26 20:53:46,194 basehttp "GET / HTTP/1.1" 302 0
+INFO 2025-08-26 20:53:49,603 basehttp "GET /swagger/ HTTP/1.1" 200 2167
+INFO 2025-08-26 20:53:59,382 basehttp - Broken pipe from ('127.0.0.1', 58743)
+INFO 2025-08-26 20:53:59,739 basehttp - Broken pipe from ('127.0.0.1', 58755)
+INFO 2025-08-26 20:53:59,955 basehttp - Broken pipe from ('127.0.0.1', 58744)
+INFO 2025-08-26 20:54:00,816 basehttp - Broken pipe from ('127.0.0.1', 58756)
+INFO 2025-08-26 20:54:01,178 basehttp - Broken pipe from ('127.0.0.1', 58758)
+INFO 2025-08-26 20:54:01,779 basehttp - Broken pipe from ('127.0.0.1', 58757)
+INFO 2025-08-26 20:54:09,229 basehttp - Broken pipe from ('127.0.0.1', 58770)
+INFO 2025-08-26 20:54:09,571 basehttp "GET /static/drf-yasg/style.css HTTP/1.1" 200 1047
+INFO 2025-08-26 20:54:09,707 basehttp "GET /static/drf-yasg/swagger-ui-init.js HTTP/1.1" 200 14964
+INFO 2025-08-26 20:54:09,752 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui.css HTTP/1.1" 200 145206
+INFO 2025-08-26 20:54:10,743 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui-bundle.js HTTP/1.1" 200 1046583
+INFO 2025-08-26 20:54:10,888 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui-standalone-preset.js HTTP/1.1" 200 322863
+INFO 2025-08-26 20:54:10,992 basehttp "GET /static/drf-yasg/insQ.min.js HTTP/1.1" 200 2093
+INFO 2025-08-26 20:54:11,310 basehttp "GET /static/drf-yasg/immutable.min.js HTTP/1.1" 200 56904
+INFO 2025-08-26 20:54:11,975 basehttp "GET /static/drf-yasg/swagger-ui-dist/favicon-32x32.png HTTP/1.1" 200 628
+INFO 2025-08-26 20:54:14,532 basehttp "GET /admin/ HTTP/1.1" 302 0
+INFO 2025-08-26 20:54:14,804 basehttp - Broken pipe from ('127.0.0.1', 58774)
+INFO 2025-08-26 20:54:15,169 basehttp "GET /admin/login/?next=/admin/ HTTP/1.1" 200 3793
+INFO 2025-08-26 20:54:15,566 basehttp "GET /static/admin/css/base.css HTTP/1.1" 304 0
+INFO 2025-08-26 20:54:15,571 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+INFO 2025-08-26 20:54:15,883 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:54:15,884 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:54:15,889 basehttp "GET /static/admin/css/login.css HTTP/1.1" 200 958
+INFO 2025-08-26 20:54:15,898 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+INFO 2025-08-26 20:54:15,906 basehttp "GET /static/admin_custom/styles.css HTTP/1.1" 200 5198
+INFO 2025-08-26 20:54:16,125 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+INFO 2025-08-26 20:54:27,825 basehttp "POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+INFO 2025-08-26 20:54:28,048 basehttp "GET /admin/ HTTP/1.1" 200 17999
+INFO 2025-08-26 20:54:28,238 basehttp "GET /static/admin/css/dashboard.css HTTP/1.1" 200 441
+INFO 2025-08-26 20:54:28,383 basehttp "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+INFO 2025-08-26 20:54:28,435 basehttp "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+INFO 2025-08-26 20:55:23,789 basehttp "GET /admin/api/inspeccionejecucion/ HTTP/1.1" 200 50790
+INFO 2025-08-26 20:55:24,130 basehttp "GET /static/admin/css/changelists.css HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,132 basehttp "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,132 basehttp "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,141 basehttp "GET /admin/jsi18n/ HTTP/1.1" 200 8121
+INFO 2025-08-26 20:55:24,156 basehttp "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,163 basehttp "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,212 basehttp "GET /static/admin/js/filters.js HTTP/1.1" 200 978
+INFO 2025-08-26 20:55:24,293 basehttp "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,386 basehttp "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,451 basehttp "GET /static/admin/js/core.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,508 basehttp "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+INFO 2025-08-26 20:55:24,703 basehttp "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+INFO 2025-08-26 20:56:21,511 basehttp "GET / HTTP/1.1" 302 0
+INFO 2025-08-26 20:56:21,560 basehttp "GET /swagger/ HTTP/1.1" 200 2167
+INFO 2025-08-26 20:56:21,773 basehttp "GET /static/drf-yasg/style.css HTTP/1.1" 200 1047
+INFO 2025-08-26 20:56:21,887 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui.css HTTP/1.1" 200 145206
+INFO 2025-08-26 20:56:21,927 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui-bundle.js HTTP/1.1" 200 1046583
+INFO 2025-08-26 20:56:21,981 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui-standalone-preset.js HTTP/1.1" 200 322863
+INFO 2025-08-26 20:56:22,019 basehttp "GET /static/drf-yasg/insQ.min.js HTTP/1.1" 200 2093
+INFO 2025-08-26 20:56:22,148 basehttp "GET /static/drf-yasg/immutable.min.js HTTP/1.1" 200 56904
+INFO 2025-08-26 20:56:22,183 basehttp "GET /static/drf-yasg/swagger-ui-init.js HTTP/1.1" 200 14964
+INFO 2025-08-26 20:56:22,798 basehttp "GET /static/drf-yasg/swagger-ui-dist/favicon-32x32.png HTTP/1.1" 200 628
+INFO 2025-08-26 20:56:23,846 basehttp "GET /swagger/?format=openapi HTTP/1.1" 200 74432
+INFO 2025-08-26 20:56:29,251 basehttp "GET /admin/ HTTP/1.1" 302 0
+INFO 2025-08-26 20:56:29,286 basehttp "GET /admin/login/?next=/admin/ HTTP/1.1" 200 3793
+INFO 2025-08-26 20:56:29,687 basehttp "GET /static/admin/css/base.css HTTP/1.1" 200 21310
+INFO 2025-08-26 20:56:29,692 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 200 2694
+INFO 2025-08-26 20:56:29,692 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 200 1943
+INFO 2025-08-26 20:56:29,692 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 200 3063
+INFO 2025-08-26 20:56:29,721 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 200 2929
+INFO 2025-08-26 20:56:29,726 basehttp "GET /static/admin_custom/styles.css HTTP/1.1" 200 5198
+INFO 2025-08-26 20:56:29,741 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 200 18559
+INFO 2025-08-26 20:56:29,757 basehttp "GET /static/admin/css/login.css HTTP/1.1" 200 958
+WARNING 2025-08-26 20:56:30,545 log Not Found: /favicon.ico
+WARNING 2025-08-26 20:56:30,551 basehttp "GET /favicon.ico HTTP/1.1" 404 3266
+INFO 2025-08-26 20:57:22,712 basehttp "GET / HTTP/1.1" 302 0
+INFO 2025-08-26 20:57:22,823 basehttp "GET /swagger/ HTTP/1.1" 200 2167
+INFO 2025-08-26 20:57:23,298 basehttp "GET /static/drf-yasg/style.css HTTP/1.1" 200 1047
+INFO 2025-08-26 20:57:23,523 basehttp "GET /static/drf-yasg/swagger-ui-init.js HTTP/1.1" 200 14964
+INFO 2025-08-26 20:57:23,529 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui.css HTTP/1.1" 200 145206
+INFO 2025-08-26 20:57:24,013 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui-bundle.js HTTP/1.1" 200 1046583
+INFO 2025-08-26 20:57:24,048 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui-standalone-preset.js HTTP/1.1" 200 322863
+INFO 2025-08-26 20:57:24,152 basehttp "GET /static/drf-yasg/insQ.min.js HTTP/1.1" 200 2093
+INFO 2025-08-26 20:57:24,519 basehttp "GET /static/drf-yasg/immutable.min.js HTTP/1.1" 200 56904
+INFO 2025-08-26 20:57:26,706 basehttp "GET /static/drf-yasg/swagger-ui-dist/favicon-32x32.png HTTP/1.1" 200 628
+INFO 2025-08-26 20:57:27,367 basehttp "GET /swagger/?format=openapi HTTP/1.1" 200 74432
+INFO 2025-08-26 20:57:40,572 basehttp "GET /admin/ HTTP/1.1" 302 0
+INFO 2025-08-26 20:57:40,605 basehttp "GET /admin/login/?next=/admin/ HTTP/1.1" 200 3793
+INFO 2025-08-26 20:57:40,742 basehttp "GET /static/admin/css/dark_mode.css HTTP/1.1" 200 2929
+INFO 2025-08-26 20:57:40,763 basehttp "GET /static/admin/css/base.css HTTP/1.1" 200 21310
+INFO 2025-08-26 20:57:40,897 basehttp "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 200 2694
+INFO 2025-08-26 20:57:41,038 basehttp "GET /static/admin_custom/styles.css HTTP/1.1" 200 5198
+INFO 2025-08-26 20:57:41,053 basehttp "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 200 3063
+INFO 2025-08-26 20:57:41,211 basehttp "GET /static/admin/css/login.css HTTP/1.1" 200 958
+INFO 2025-08-26 20:57:41,220 basehttp "GET /static/admin/js/theme.js HTTP/1.1" 200 1943
+INFO 2025-08-26 20:57:41,368 basehttp "GET /static/admin/css/responsive.css HTTP/1.1" 200 18559
+WARNING 2025-08-26 20:57:42,569 log Not Found: /favicon.ico
+WARNING 2025-08-26 20:57:42,587 basehttp "GET /favicon.ico HTTP/1.1" 404 3266
+INFO 2025-08-27 19:52:54,188 autoreload Watching for file changes with StatReloader
+INFO 2025-08-27 19:53:20,696 basehttp "GET / HTTP/1.1" 302 0
+INFO 2025-08-27 19:53:23,175 basehttp "GET /swagger/ HTTP/1.1" 200 2167
+INFO 2025-08-27 19:53:24,285 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui.css HTTP/1.1" 304 0
+INFO 2025-08-27 19:53:24,403 basehttp "GET /static/drf-yasg/insQ.min.js HTTP/1.1" 304 0
+INFO 2025-08-27 19:53:24,480 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui-bundle.js HTTP/1.1" 304 0
+INFO 2025-08-27 19:53:24,669 basehttp "GET /static/drf-yasg/swagger-ui-dist/swagger-ui-standalone-preset.js HTTP/1.1" 304 0
+INFO 2025-08-27 19:53:24,887 basehttp "GET /static/drf-yasg/immutable.min.js HTTP/1.1" 304 0
+INFO 2025-08-27 19:53:25,640 basehttp "GET /static/drf-yasg/swagger-ui-init.js HTTP/1.1" 304 0
+INFO 2025-08-27 19:53:26,385 basehttp "GET /static/drf-yasg/style.css HTTP/1.1" 200 1047
+INFO 2025-08-27 19:53:27,923 basehttp "GET /swagger/?format=openapi HTTP/1.1" 200 74432

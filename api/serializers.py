@@ -698,3 +698,25 @@ class KpiInspeccionesResponseSerializer(serializers.Serializer):
     rutas_totales = serializers.IntegerField()
     ejecuciones_7d = serializers.IntegerField()
     tiempo_promedio = serializers.FloatField()
+
+
+class NotificacionAppSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificacionApp
+        fields = [
+            'id', 'titulo', 'mensaje', 'tipo', 'prioridad', 
+            'leida', 'fecha_creacion', 'fecha_lectura',
+            'data_adicional', 'relacion_id', 'relacion_tipo'
+        ]
+        read_only_fields = ['fecha_creacion', 'fecha_lectura']
+
+
+class DispositivoRequestSerializer(serializers.Serializer):
+    token_fcm = serializers.CharField(max_length=255)
+    plataforma = serializers.CharField(max_length=20)
+    version_app = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+    def validate_plataforma(self, value):
+        if value not in ['android', 'ios']:
+            raise serializers.ValidationError("Plataforma debe ser 'android' o 'ios'")
+        return value

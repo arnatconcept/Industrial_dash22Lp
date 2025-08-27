@@ -212,3 +212,33 @@ class ResultadoInspeccionAdmin(admin.ModelAdmin):
     list_display = ('ejecucion', 'variable', 'valor_medido', 'fecha')
     search_fields = ('variable__nombre', 'ejecucion__ruta__nombre')
     list_filter = ('variable',)
+
+class HistorialCambioOrdenAdmin(admin.ModelAdmin):
+    list_display = ('orden', 'usuario', 'tipo_cambio', 'campo_afectado', 'fecha_cambio')
+    search_fields = ('campo_afectado', 'valor_anterior', 'valor_nuevo')
+    list_filter = ('tipo_cambio', 'fecha_cambio')
+
+class PLCAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'modelo', 'tipo', 'direccion_ip', 'ubicacion', 'firmware', 'fecha_instalacion')
+    search_fields = ('nombre', 'modelo', 'tipo')
+    list_filter = ('tipo',)
+
+class PLCEntradaSalidaAdmin(admin.ModelAdmin):
+    list_display = ('plc', 'direccion', 'tipo', 'etiqueta', 'valor_actual', 'fecha_actualizacion')
+    search_fields = ('direccion', 'etiqueta')
+    list_filter = ('tipo', 'plc')
+
+class PLCLogAdmin(admin.ModelAdmin):
+    list_display = ('plc', 'entrada_salida', 'tipo', 'valor_anterior', 'valor_nuevo', 'fecha', 'usuario')
+    search_fields = ('descripcion', 'valor_nuevo')
+    list_filter = ('tipo', 'fecha')
+
+class NotificacionAppAdmin(admin.ModelAdmin):
+    list_display = ('usuario_nombre', 'titulo', 'tipo', 'prioridad', 'leida', 'enviada_push', 'fecha_creacion')
+    list_filter = ('tipo', 'prioridad', 'leida', 'enviada_push')
+    search_fields = ('titulo', 'mensaje', 'usuario__nombre')
+
+class DispositivoAppAdmin(admin.ModelAdmin):
+    list_display = ('usuario_nombre', 'token_fcm', 'plataforma', 'version_app', 'esta_activo')
+    search_fields = ('usuario_nombre', 'token_fcm')
+    list_filter = ('plataforma', 'esta_activo')

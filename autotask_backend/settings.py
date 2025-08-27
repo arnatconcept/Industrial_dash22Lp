@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'api',
     'django_filters',
     'drf_yasg',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -210,4 +211,159 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
+# ==================== CELERY CONFIGURATION ====================
 
+# Configuración de Celery
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'America/Argentina/Buenos_Aires'
+CELERY_ENABLE_UTC = True
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
+
+# Configuración de tareas periódicas (Beat)
+CELERY_BEAT_SCHEDULE = {
+    'verificar-mantenimientos-preventivos': {
+        'task': 'api.tasks.verificar_mantenimientos_preventivos',
+        'schedule': timedelta(hours=24),  # Cada 24 horas
+        'options': {'queue': 'periodic_tasks'}
+    },
+    'recordatorios-ordenes-pendientes': {
+        'task': 'api.tasks.recordatorios_ordenes_pendientes',
+        'schedule': timedelta(hours=12),  # Cada 12 horas
+        'options': {'queue': 'periodic_tasks'}
+    },
+    'reintentar-notificaciones-fallidas': {
+        'task': 'api.tasks.reintentar_notificaciones_fallidas',
+        'schedule': timedelta(hours=1),  # Cada hora
+        'options': {'queue': 'periodic_tasks'}
+    },
+    'limpiar-dispositivos-inactivos': {
+        'task': 'api.tasks.limpiar_dispositivos_inactivos',
+        'schedule': timedelta(days=7),  # Cada 7 días
+        'options': {'queue': 'periodic_tasks'}
+    },
+}
+
+# Configuración para entornos de producción
+if 'RENDER' in os.environ:
+    CELERY_BROKER_TRANSPORT_OPTIONS = {
+        'max_retries': 3,
+        'interval_start': 0,
+        'interval_step': 0.2,
+        'interval_max': 0.5,
+    }
+    # En producción, deshabilitar eager execution
+    CELERY_TASK_ALWAYS_EAGER = False
+
+# ==================== FIREBASE CONFIGURATION ====================
+
+# Firebase Cloud Messaging
+FCM_SERVER_KEY = os.environ.get('FCM_SERVER_KEY', 'foGrVmvHTP0b8RE3Es7YosOhV35Zygk6O1q35joXhNM')
+
+# ==================== LOGGING CONFIGURATION ====================
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'formatter': 'verbose',
+        },
+        'celery_file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'celery.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': True,
+        },
+        'api': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console', 'celery_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'api.tasks': {
+            'handlers': ['console', 'celery_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'api.services': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
+# Crear directorio de logs si no existe
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
+
+# ==================== SECURITY SETTINGS ====================
+
+# Configuración de seguridad para producción
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # Restringir hosts en producción
+    ALLOWED_HOSTS = [
+        'tu-app.onrender.com',
+        'localhost',
+        '127.0.0.1',
+    ]
+
+# ==================== FILE UPLOAD SETTINGS ====================
+
+# Configuración de subida de archivos
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+
+# ==================== CACHE CONFIGURATION ====================
+
+# Configuración de caché con Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+# Tiempo de vida de la caché (en segundos)
+CACHE_TTL = 60 * 15  # 15 minutos

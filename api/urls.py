@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import *
+from .notificaciones_views import NotificacionesViewSet, DispositivoView
 
 router = DefaultRouter()
 router.register(r'lineas', LineaProduccionViewSet)
@@ -23,6 +24,7 @@ router.register(r'rutas-inspeccion', RutaInspeccionViewSet, basename='rutainspec
 router.register(r'variables-inspeccion', VariableInspeccionViewSet, basename='variableinspeccion')
 router.register(r'ejecuciones-inspeccion', InspeccionEjecucionViewSet, basename='inspeccionejecucion')
 router.register(r'resultados-inspeccion', ResultadoInspeccionViewSet, basename='resultadoinspeccion')   
+router.register(r'notificaciones', NotificacionesViewSet, basename='notificaciones')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -40,7 +42,12 @@ urlpatterns = [
     path('dashboard/supervisor/variables-top/', DashboardSupervisorVariablesTopView.as_view(), name='dashboard-variables-top'),
     path('dashboard/supervisor/activos-criticos/', DashboardSupervisorActivosCriticosView.as_view(), name='dashboard-activos-criticos'),
     path('dashboard/supervisor/alertas-recientes/', DashboardSupervisorAlertasRecientesView.as_view(), name='dashboard-alertas-recientes'),
-    path('dashboard/kpi-inspecciones/', KpiInspeccionesView.as_view(), name='kpi-inspecciones')
+    path('dashboard/kpi-inspecciones/', KpiInspeccionesView.as_view(), name='kpi-inspecciones'),
+
+    
+    path('api/dispositivo/registrar/', 
+         DispositivoView.as_view(), 
+         name='registrar-dispositivo')
 
 
 ]

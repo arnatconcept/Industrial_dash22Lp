@@ -141,7 +141,6 @@ class Motor(EquipoBase, UbicacionBase):
     imagen = models.ImageField(upload_to='motores/', blank=True, null=True)
     creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='motores_creados')
     
-    # Campos calculados para URLs completas
     plano_url = models.CharField(max_length=500, blank=True, null=True)
     imagen_url = models.CharField(max_length=500, blank=True, null=True)
 
@@ -149,20 +148,42 @@ class Motor(EquipoBase, UbicacionBase):
         return self.codigo
 
     def save(self, *args, **kwargs):
-        # Lógica de estado
+        # Lógica de estado según ubicación
         if self.ubicacion_tipo == 'mantenimiento':
             self.estado = 'reparacion'
+        elif self.ubicacion_tipo == 'deposito':
+            self.estado = 'standby'
         elif self.ubicacion_tipo == 'linea' and self.estado == 'reparacion':
             self.estado = 'operativo'
-            
-        # Actualizar URLs cuando se suben archivos
+        
+        # Lógica de URLs de archivos
         if self.ref_plano and not self.plano_url:
             self.plano_url = self.ref_plano.url
         if self.imagen and not self.imagen_url:
             self.imagen_url = self.imagen.url
-            
-        super().save(*args, **kwargs)
         
+        # ✅ Lógica CORRECTA de próximo mantenimiento
+        if self.estado == 'operativo':
+            self._calcular_proximo_mantenimiento()
+        else:
+            self.proximo_mantenimiento = None
+        
+        # ✅ UN solo super().save() al final
+        super().save(*args, **kwargs)
+
+    def _calcular_proximo_mantenimiento(self):
+        """Calcula próximo mantenimiento solo para equipos operativos"""
+        from datetime import timedelta  # ✅ Importación local
+        
+        if self.ultimo_mantenimiento:
+            # Basado en último mantenimiento + frecuencia (ej: 90 días)
+            self.proximo_mantenimiento = self.ultimo_mantenimiento + timedelta(days=90)
+        elif self.fecha_instalacion:
+            # Equipo nuevo - primer mantenimiento (ej: 30 días)
+            self.proximo_mantenimiento = self.fecha_instalacion + timedelta(days=30)
+        else:
+            self.proximo_mantenimiento = None
+            
     def get_absolute_plano_url(self, request):
         if self.plano_url:
             return request.build_absolute_uri(self.plano_url)
@@ -172,27 +193,50 @@ class Motor(EquipoBase, UbicacionBase):
         if self.imagen_url:
             return request.build_absolute_uri(self.imagen_url)
         return None
+    
 
 class Variador(EquipoBase, UbicacionBase):
     codigo = models.CharField(max_length=100, unique=True)
     marca = models.CharField(max_length=100)
     modelo = models.CharField(max_length=100)
     potencia = models.CharField(max_length=50)
-    imagen = models.ImageField(upload_to='variadores/', blank=True, null=True)  # Campo para fotos
-    manual = models.FileField(upload_to='manuales_variadores/', blank=True, null=True)  # Manuales PDF
-    parametros = models.JSONField(default=dict, blank=True)  # Configuraciones técnicas
+    imagen = models.ImageField(upload_to='variadores/', blank=True, null=True)
+    manual = models.FileField(upload_to='manuales_variadores/', blank=True, null=True)
+    parametros = models.JSONField(default=dict, blank=True)
     creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='variadores_creados')
 
     def __str__(self):
         return self.codigo
 
     def save(self, *args, **kwargs):
+        # Lógica de estado según ubicación
         if self.ubicacion_tipo == 'mantenimiento':
             self.estado = 'reparacion'
+        elif self.ubicacion_tipo == 'deposito':
+            self.estado = 'standby'
         elif self.ubicacion_tipo == 'linea' and self.estado == 'reparacion':
             self.estado = 'operativo'
+        
+        # ✅ Lógica CORRECTA de próximo mantenimiento
+        if self.estado == 'operativo':
+            self._calcular_proximo_mantenimiento()
+        else:
+            self.proximo_mantenimiento = None
+        
         super().save(*args, **kwargs)
 
+    def _calcular_proximo_mantenimiento(self):
+        """Calcula próximo mantenimiento solo para equipos operativos"""
+        from datetime import timedelta  # ✅ Importación local
+        
+        if self.ultimo_mantenimiento:
+            self.proximo_mantenimiento = self.ultimo_mantenimiento + timedelta(days=90)
+        elif self.fecha_instalacion:
+            self.proximo_mantenimiento = self.fecha_instalacion + timedelta(days=30)
+        else:
+            self.proximo_mantenimiento = None
+
+            
 class OrdenMantenimiento(models.Model):
     TIPO_MANTENIMIENTO = [
         ('preventivo', 'Preventivo'),
@@ -239,8 +283,8 @@ class OrdenMantenimiento(models.Model):
         if self.fecha_cierre and not self.operario_asignado:
             raise ValidationError("Debe asignar un operario antes de cerrar la orden")
         
-        if self.tipo == 'preventivo' and not self.proximo_mantenimiento:
-            raise ValidationError("Las órdenes preventivas requieren fecha de próximo mantenimiento")
+        #if self.tipo == 'preventivo' and not self.proximo_mantenimiento:
+        #    raise ValidationError("Las órdenes preventivas requieren fecha de próximo mantenimiento")
 
 class Proveedor(models.Model):
     ESPECIALIDAD_CHOICES = [
@@ -501,4 +545,74 @@ class ResultadoInspeccion(models.Model):
                 )
 
     
+class NotificacionApp(models.Model):
+    TIPO_NOTIFICACION_CHOICES = [
+        ('revision', 'Próxima Revisión'),
+        ('inspeccion', 'Inspección Pendiente'),
+        ('mantenimiento', 'Mantenimiento Programado'),
+        ('alerta', 'Alerta de Equipo'),
+        ('parada', 'Parada de Producción'),
+        ('falla', 'Falla Detectada'),
+        ('completado', 'Tarea Completada'),
+    ]
     
+    PRIORIDAD_CHOICES = [
+        ('baja', 'Baja'),
+        ('media', 'Media'),
+        ('alta', 'Alta'),
+        ('critica', 'Crítica'),
+    ]
+    
+    # Destinatario
+    usuario_id = models.IntegerField()  # ID del usuario, no ForeignKey para independencia
+    usuario_nombre = models.CharField(max_length=150)
+    
+    # Contenido
+    titulo = models.CharField(max_length=200)
+    mensaje = models.TextField()
+    tipo = models.CharField(max_length=20, choices=TIPO_NOTIFICACION_CHOICES)
+    prioridad = models.CharField(max_length=20, choices=PRIORIDAD_CHOICES)
+    
+    # Metadata
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_lectura = models.DateTimeField(null=True, blank=True)
+    leida = models.BooleanField(default=False)
+    
+    # Datos adicionales para la app
+    data_adicional = models.JSONField(default=dict, blank=True)
+    relacion_id = models.IntegerField(null=True, blank=True)  # ID de orden, activo, etc.
+    relacion_tipo = models.CharField(max_length=50, blank=True)  # 'orden', 'activo', 'parada'
+    
+    # Control FCM
+    enviada_push = models.BooleanField(default=False)
+    intentos_envio = models.IntegerField(default=0)
+    error_envio = models.TextField(blank=True)
+    
+    class Meta:
+        db_table = 'app_notificaciones'
+        ordering = ['-fecha_creacion']
+        indexes = [
+            models.Index(fields=['usuario_id', 'leida']),
+            models.Index(fields=['fecha_creacion']),
+        ]
+    
+    def __str__(self):
+        return f"{self.tipo} - {self.usuario_nombre}"
+
+
+class DispositivoApp(models.Model):
+    """Registro de dispositivos móviles para FCM"""
+    usuario_id = models.IntegerField()  # ID del usuario en el sistema existente
+    usuario_nombre = models.CharField(max_length=150)
+    token_fcm = models.CharField(max_length=255, unique=True)
+    plataforma = models.CharField(max_length=20)  # 'android', 'ios'
+    version_app = models.CharField(max_length=20, blank=True)
+    esta_activo = models.BooleanField(default=True)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    ultima_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'app_dispositivos'
+    
+    def __str__(self):
+        return f"{self.usuario_nombre} - {self.plataforma}"
