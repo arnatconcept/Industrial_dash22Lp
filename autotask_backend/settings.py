@@ -341,7 +341,7 @@ if not DEBUG:
     
     # Restringir hosts en producción
     ALLOWED_HOSTS = [
-        'tu-app.onrender.com',
+        'https://maintech-backend.onrender.com',
         'localhost',
         '127.0.0.1',
     ]
