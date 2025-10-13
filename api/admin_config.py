@@ -2,10 +2,15 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.db.models import Q
 from .models import *
+from django.contrib.auth.admin import UserAdmin
 
 # ---------------------- #
 # Filtros personalizados #
 # ---------------------- #
+
+class TurnoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'hora_inicio', 'hora_fin')
+    search_fields = ('nombre',)
 
 class LineaProduccionFilter(admin.SimpleListFilter):
     title = 'Línea'
@@ -45,11 +50,25 @@ class SectorFilter(admin.SimpleListFilter):
 # ModelAdmins            #
 # ---------------------- #
 
+class CustomUserAdmin(UserAdmin):
+    model = User
+    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_staff', 'is_active')
+    list_filter = ('role', 'is_staff', 'is_active')
+    fieldsets = UserAdmin.fieldsets + (
+        (None, {'fields': ('role',)}),
+    )
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        (None, {'fields': ('role',)}),
+    )
+
 class UserAdmin(admin.ModelAdmin):
-    def save_model(self, request, obj, form, change):
-        if obj.is_superuser:
-            obj.role = 'admin'
-        super().save_model(request, obj, form, change)
+    list_display = ('username', 'email', 'role', 'is_staff', 'is_superuser')
+    list_filter = ('role', 'is_staff', 'is_superuser')
+#class UserAdmin(admin.ModelAdmin):
+#    def save_model(self, request, obj, form, change):
+#        if obj.is_superuser:
+#            obj.role = 'admin'
+#        super().save_model(request, obj, form, change)
 
 
 class LineaProduccionAdmin(admin.ModelAdmin):
@@ -90,6 +109,82 @@ class VariadorAdmin(admin.ModelAdmin):
     list_filter = ('estado', 'ubicacion_tipo', 'linea', 'sector')
     search_fields = ('codigo', 'marca', 'modelo')
     readonly_fields = ('creado_por',)
+
+class ReunionDiariaAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'estado', 'creada_por', 'creada_en')
+    list_filter = ('estado', 'fecha', 'creada_por')
+    search_fields = ('notas', 'motivo_anulacion')
+    readonly_fields = ('creada_en',)
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('fecha', 'estado', 'creada_por')
+        }),
+        ('Detalles', {
+            'fields': ('motivo_anulacion', 'notas')
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:
+            obj.creada_por = request.user
+        super().save_model(request, obj, form, change)
+
+
+class IncidenciaReunionAdmin(admin.ModelAdmin):
+    list_display = ('reunion', 'tipo', 'prioridad', 'resuelta', 'reportada_por', 'creada_en')
+    list_filter = ('tipo', 'prioridad', 'resuelta', 'reunion__fecha')
+    search_fields = ('descripcion',)
+    readonly_fields = ('creada_en',)
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('reunion', 'descripcion', 'tipo', 'prioridad')
+        }),
+        ('Asociaciones', {
+            'fields': ('equipo_relacionado', 'orden_mantenimiento', 'reportada_por')
+        }),
+        ('Estado', {
+            'fields': ('resuelta',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:
+            obj.reportada_por = request.user
+        super().save_model(request, obj, form, change)
+
+
+class PlanificacionReunionAdmin(admin.ModelAdmin):
+    list_display = ('reunion', 'fecha_programada', 'responsable', 'creada_en')
+    list_filter = ('fecha_programada', 'reunion__fecha')
+    search_fields = ('descripcion',)
+    readonly_fields = ('creada_en',)
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('reunion', 'descripcion', 'fecha_programada')
+        }),
+        ('Asociaciones', {
+            'fields': ('responsable', 'equipo_relacionado', 'orden_mantenimiento')
+        }),
+    )
+
+
+class AccionReunionAdmin(admin.ModelAdmin):
+    list_display = ('incidencia', 'completada', 'fecha_limite', 'asignada_a', 'creada_en')
+    list_filter = ('completada', 'fecha_limite')
+    search_fields = ('descripcion',)
+    readonly_fields = ('creada_en',)
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('incidencia', 'descripcion', 'fecha_limite', 'completada')
+        }),
+        ('Asignación', {
+            'fields': ('asignada_a', 'orden_mantenimiento')
+        }),
+    )
 
 
 class ProveedorAdmin(admin.ModelAdmin):
@@ -242,3 +337,32 @@ class DispositivoAppAdmin(admin.ModelAdmin):
     list_display = ('usuario_nombre', 'token_fcm', 'plataforma', 'version_app', 'esta_activo')
     search_fields = ('usuario_nombre', 'token_fcm')
     list_filter = ('plataforma', 'esta_activo')
+
+class ProduccionAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'turno', 'linea', 'meta_produccion', 'eficiencia', 'fuente_dato')
+    list_filter = ('fecha', 'turno', 'linea', 'fuente_dato')
+    search_fields = ('linea__nombre', 'turno__nombre')
+
+class ProduccionTurnoAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'turno', 'linea', 'cantidad', 'unidad', 'meta_produccion', 'eficiencia', 'fuente_dato')
+    list_filter = ('fecha', 'turno', 'linea', 'fuente_dato')
+    search_fields = ('linea__nombre', 'turno__nombre')
+    readonly_fields = ('eficiencia', 'fecha_creacion', 'fecha_actualizacion')
+
+class FallaTurnoAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'turno', 'linea', 'equipo', 'tipo', 'gravedad', 'cantidad', 'duracion_minutos')
+    list_filter = ('fecha', 'turno', 'linea', 'tipo', 'gravedad')
+    search_fields = ('linea__nombre', 'equipo__nombre', 'descripcion')
+    readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+class ParadaTurnoAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'turno', 'linea', 'equipo', 'motivo', 'tipo', 'duracion_minutos')
+    list_filter = ('fecha', 'turno', 'linea', 'motivo', 'tipo')
+    search_fields = ('linea__nombre', 'equipo__nombre', 'descripcion')
+    readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
+
+class NodeRedLogAdmin(admin.ModelAdmin):
+    list_display = ('tipo_dato', 'fecha_recepcion', 'estado', 'registros_afectados')
+    list_filter = ('tipo_dato', 'estado', 'fecha_recepcion')
+    search_fields = ('mensaje',)
+    readonly_fields = ('fecha_recepcion',)

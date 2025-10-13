@@ -4,7 +4,10 @@ from django.dispatch import receiver
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from .models import Motor, Variador, Reparacion, OrdenMantenimiento, HistorialMantenimiento, ResultadoInspeccion
-from .services.notification_service import NotificationService
+from .notification_service import NotificationService
+import logging
+
+logger = logging.getLogger(__name__)
 
 @receiver(pre_save, sender=Motor)
 @receiver(pre_save, sender=Variador)
@@ -127,3 +130,16 @@ def manejar_alerta_inspeccion(sender, instance, created, **kwargs):
             transaction.on_commit(
                 lambda: service.notificar_alerta_inspeccion(instance.id)
             )
+
+# ✅ AGREGAR ESTA SEÑAL PARA INCIDENCIAS CRÍTICAS
+@receiver(post_save, sender='api.IncidenciaReunion')  # Usar string reference para evitar importación circular
+def manejar_incidencia_critica(sender, instance, created, **kwargs):
+    """Maneja la creación automática de órdenes para incidencias críticas"""
+    if created and instance.prioridad == "critica" and not instance.orden_mantenimiento:
+        # Importar aquí para evitar circular imports
+        from .models import OrdenMantenimiento
+        from .tasks import crear_orden_desde_incidencia_critica
+        
+        # Ejecutar como tarea Celery para mejor performance
+        crear_orden_desde_incidencia_critica.delay(instance.id)
+        logger.info(f"📋 Tarea programada para crear orden desde incidencia crítica: {instance.id}")

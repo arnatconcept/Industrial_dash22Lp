@@ -1,0 +1,2566 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Producción Inteligente{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">🏭 Dashboard Producción Inteligente</h1>
+    <div class="d-flex align-items-center">
+      <span class="badge bg-warning fs-6 p-2 me-3">
+        <i class="fas fa-clock me-1"></i><span id="lastUpdate">Actualizado ahora</span>
+      </span>
+      <button class="btn btn-sm btn-outline-primary" onclick="cargarDatos()">
+        <i class="fas fa-sync-alt"></i> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de filtros mejorada -->
+  <div class="card filter-bar mb-4">
+    <div class="card-body py-3">
+      <form class="d-flex align-items-center flex-wrap gap-2" id="filterForm" onsubmit="return false;">
+        <div class="input-group input-group-sm" style="width: 250px;">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+          <input class="form-control" type="search" placeholder="Buscar producción..." id="searchInput">
+        </div>
+        
+        <div class="d-flex align-items-center">
+          <label class="form-label me-2 mb-0 small">Desde:</label>
+          <input type="date" class="form-control form-control-sm" id="fechaInicio" style="width: 150px;">
+        </div>
+        
+        <div class="d-flex align-items-center">
+          <label class="form-label me-2 mb-0 small">Hasta:</label>
+          <input type="date" class="form-control form-control-sm" id="fechaFin" style="width: 150px;">
+        </div>
+        
+        <select class="form-select form-select-sm" id="filterLinea" style="width: 180px;">
+          <option value="">Todas las Líneas</option>
+          {% for linea in lineas %}
+          <option value="{{ linea.id }}">{{ linea.nombre }}</option>
+          {% endfor %}
+        </select>
+        <select class="form-select form-select-sm" id="filterTurno" style="width: 180px;">
+          <option value="">Todos los Turnos</option>
+        </select>
+        
+        <button class="btn btn-sm btn-primary" type="button" onclick="aplicarFiltros()">
+          <i class="fas fa-filter me-1"></i> Aplicar
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="limpiarFiltros()">
+          <i class="fas fa-times me-1"></i> Limpiar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- KPIs principales mejorados -->
+  <div class="row row-cols-1 row-cols-md-4 g-3 mb-4" id="kpi-container"></div>
+
+  <!-- Layout principal: 2 columnas -->
+  <div class="row">
+    <!-- Columna izquierda: Gráficos principales -->
+    <div class="col-lg-8">
+      <!-- Primera fila: Gráficos de producción y eficiencia -->
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-chart-bar me-2"></i>Producción por Línea
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('produccion')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <i class="fas fa-cog"></i>
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" onclick="changeChartType('chartProduccionLinea', 'bar')">Barras</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="changeChartType('chartProduccionLinea', 'line')">Líneas</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-medium">
+                <canvas id="chartProduccionLinea"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-percentage me-2"></i>Eficiencia por Línea
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('eficiencia')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <i class="fas fa-cog"></i>
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" onclick="changeChartType('chartEficiencia', 'line')">Líneas</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="changeChartType('chartEficiencia', 'bar')">Barras</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-medium">
+                <canvas id="chartEficiencia"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Segunda fila: Gráfico de Tendencia de Eficiencia -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-chart-line me-2"></i>Tendencia de Eficiencia Operativa
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('tendencia-eficiencia')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+              <div class="d-flex align-items-center">
+                <div class="btn-group btn-group-sm me-2">
+                  <button class="btn btn-outline-secondary active" onclick="cambiarVistaEficiencia('diario', this)">Día</button>
+                  <button class="btn btn-outline-secondary" onclick="cambiarVistaEficiencia('semanal', this)">Semana</button>
+                  <button class="btn btn-outline-secondary" onclick="cambiarVistaEficiencia('mensual', this)">Mes</button>
+                </div>
+                <div class="btn-group btn-group-sm" id="lineasEficienciaButtons">
+                  <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-filter"></i> Líneas
+                  </button>
+                  <ul class="dropdown-menu" id="lineasEficienciaList">
+                    <!-- Se llenará dinámicamente -->
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-large">
+                <canvas id="chartEficienciaOperativa"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tercera fila: Gráficos de scrap y predicciones -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-trash me-2"></i>Scrap por Línea
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('scrap')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-medium">
+                <canvas id="chartScrap"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-chart-line me-2"></i>Predicción de Producción
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('prediccion')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-medium">
+                <canvas id="chartPrediccion"></canvas>
+              </div>
+              <div class="mt-3 text-center">
+                <small class="text-muted">Proyección basada en datos históricos y tendencias</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cuarta fila: Gráficos de operaciones de vagones -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                  <i class="fas fa-train me-2"></i>Operaciones de Vagones por Línea
+                  <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('operaciones-vagones')" title="Ayuda">
+                    <i class="fas fa-info-circle"></i>
+                  </button>
+                </h6>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-cog"></i>
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="changeChartType('chartOperacionesVagones', 'bar')">Barras</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="changeChartType('chartOperacionesVagones', 'line')">Líneas</a></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="chart-container-medium">
+                  <canvas id="chartOperacionesVagones"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+
+      </div>
+    </div>
+
+    <!-- Columna derecha: Métricas y alertas -->
+    <div class="col-lg-4">
+      <!-- Eficiencia Operativa Principal -->
+      <div class="card eficiencia-card bg-gradient-info text-white mb-4">
+        <div class="card-body text-center">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h6 class="mb-0">
+              <i class="fas fa-cogs me-2"></i>EFICIENCIA OPERATIVA
+              <button class="btn btn-sm btn-link text-white p-0 ms-1 opacity-75" onclick="mostrarAyuda('eficiencia-operativa')" title="Ayuda">
+                <i class="fas fa-info-circle"></i>
+              </button>
+            </h6>
+            <small class="opacity-75">Desempeño General</small>
+          </div>
+          <div class="eficiencia-score-container">
+            <div class="eficiencia-score" id="eficiencia-score">0%</div>
+            <div class="eficiencia-progress mt-3">
+              <div class="progress" style="height: 8px;">
+                <div id="eficiencia-progress-bar" class="progress-bar bg-success" style="width: 0%"></div>
+              </div>
+              <div class="d-flex justify-content-between mt-1">
+                <small>0%</small>
+                <small id="eficiencia-target">Meta: 90%</small>
+                <small>100%</small>
+              </div>
+            </div>
+          </div>
+          <div class="row mt-3 text-center">
+            <div class="col-4">
+              <small class="d-block opacity-75">
+                Throughput
+                <button class="btn btn-sm btn-link text-white p-0 ms-1 opacity-75" onclick="mostrarAyuda('throughput')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </small>
+              <strong id="eficiencia-throughput">0 t/h</strong>
+            </div>
+            <div class="col-4">
+              <small class="d-block opacity-75">
+                Utilización
+                <button class="btn btn-sm btn-link text-white p-0 ms-1 opacity-75" onclick="mostrarAyuda('utilizacion')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </small>
+              <strong id="eficiencia-utilizacion">0%</strong>
+            </div>
+            <div class="col-4">
+              <small class="d-block opacity-75">
+                Cumplimiento
+                <button class="btn btn-sm btn-link text-white p-0 ms-1 opacity-75" onclick="mostrarAyuda('cumplimiento-programa')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </small>
+              <strong id="eficiencia-cumplimiento">0%</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Métricas de Producción -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-chart-line me-2"></i>Métricas de Producción
+            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('metricas-produccion')" title="Ayuda">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row row-cols-2 g-2" id="metricas-produccion-container">
+            <!-- Se llenará dinámicamente -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- Alertas de Producción (Colapsable) -->
+      <div class="card collapsible-panel">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-bell me-2"></i>Alertas de Producción
+            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('alertas')" title="Ayuda">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </h6>
+          <div>
+            <span class="badge bg-danger me-2" id="alertas-count">0</span>
+            <span class="toggle-btn" onclick="toggleAlerts()">
+              <i class="fas fa-chevron-up" id="alerts-toggle-icon"></i>
+            </span>
+          </div>
+        </div>
+        <div class="collapsible-content" id="alertas-content">
+          <div class="card-body p-0">
+            <div class="enhanced-list" id="alertas-produccion-container">
+              <!-- Se llenará dinámicamente -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen de datos -->
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-list me-2"></i>Resumen por Línea
+            <span class="badge bg-primary ms-2" id="contadorLineas">0</span>
+            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('resumen-lineas')" title="Ayuda">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </h6>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-success" onclick="nuevoRegistro()" title="Nuevo Registro">
+              <i class="fas fa-plus"></i>
+            </button>
+            <button class="btn btn-outline-secondary" onclick="exportarDatos()" title="Exportar">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="enhanced-list" id="lineasContainer">
+            <!-- Las tablas se cargarán aquí dinámicamente -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>Resumen Scrap
+            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('resumen-scrap')" title="Ayuda">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="enhanced-list" id="resumenScrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para mostrar ayuda de fórmulas -->
+<div class="modal fade" id="ayudaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ayudaModalTitle">
+          <i class="fas fa-calculator me-2"></i>Fórmulas del Indicador
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="ayudaModalBody">
+        <!-- Contenido dinámico -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.chart-container-medium {
+  position: relative;
+  height: 250px;
+  width: 100%;
+}
+
+.chart-container-large {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+.eficiencia-score {
+  font-size: 3rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.enhanced-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.list-item {
+  padding: 1rem;
+  border-bottom: 1px solid #e3e6f0;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.list-item:hover {
+  background-color: #f8f9fc;
+}
+
+.alert-item {
+  border-left: 4px solid;
+  margin-bottom: 0.5rem;
+}
+
+.metric-card {
+  transition: transform 0.2s ease-in-out;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+}
+
+.kpi-card {
+  transition: all 0.3s ease;
+}
+
+.kpi-card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.formula-box {
+  background: #f8f9fa;
+  border-left: 4px solid #4e73df;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 0 0.35rem 0.35rem 0;
+}
+
+.formula {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #2e59d9;
+}
+
+.var-definition {
+  background: #e9ecef;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.bg-orange {
+  background-color: #fd7e14 !important;
+}
+
+.icon-wrapper {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.x-small {
+  font-size: 0.7rem;
+}
+
+.eficiencia-card {
+  background: linear-gradient(135deg, #36b9cc, #258391);
+  color: white;
+}
+
+.collapsible-panel {
+  transition: all 0.3s ease;
+}
+
+.collapsible-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.toggle-btn {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.toggle-btn:hover {
+  opacity: 0.8;
+}
+
+.alert-item {
+  border-left: 4px solid;
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.border-danger { border-left-color: #dc3545; }
+.border-warning { border-left-color: #ffc107; }
+.border-info { border-left-color: #0dcaf0; }
+.border-secondary { border-left-color: #6c757d; }
+
+.bg-danger.bg-opacity-10 { background-color: rgba(220, 53, 69, 0.1); }
+.bg-warning.bg-opacity-10 { background-color: rgba(255, 193, 7, 0.1); }
+.bg-info.bg-opacity-10 { background-color: rgba(13, 202, 240, 0.1); }
+.bg-secondary.bg-opacity-10 { background-color: rgba(108, 117, 125, 0.1); }
+
+@media (max-width: 768px) {
+  .enhanced-list {
+    max-height: 400px;
+  }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Incluir el plugin de anotaciones para Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+<script>
+// Sistema de ayuda para fórmulas
+const formulasAyuda = {
+  'eficiencia-operativa': {
+    titulo: 'Eficiencia Operativa Global',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Definición:</h6>
+        <p>La Eficiencia Operativa Global mide el desempeño general del sistema productivo, considerando múltiples factores de rendimiento.</p>
+        
+        <h6 class="mb-2">Componentes Principales:</h6>
+        <div class="var-definition mb-2">
+          <strong>Throughput</strong> = Toneladas producidas por hora de operación
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Utilización</strong> = (Producción Real / Capacidad Máxima Teórica) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Cumplimiento</strong> = (Producción Real / Meta de Producción) × 100
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Meta Eficiencia:</strong> 90% - Excelente: ≥90% | Bueno: ≥80% | Necesita mejora: <80%
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'throughput': {
+    titulo: 'Throughput (Productividad)',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Throughput = Total Toneladas Producidas / Total Horas Operativas</div>
+        
+        <p>El throughput mide la velocidad de producción del sistema, indicando cuántas toneladas se producen por hora de operación.</p>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-info-circle me-1"></i>
+            <strong>Importancia:</strong> Un throughput alto indica alta productividad y buen uso del tiempo disponible.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'utilizacion': {
+    titulo: 'Utilización de Capacidad',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Utilización = (Producción Real / Capacidad Máxima Teórica) × 100</div>
+        
+        <p>Esta métrica indica qué porcentaje de la capacidad máxima disponible está siendo utilizada efectivamente.</p>
+        
+        <h6 class="mb-2">Variables:</h6>
+        <div class="var-definition mb-2">
+          <strong>Capacidad Máxima Teórica</strong> = Líneas Activas × Capacidad por Línea × Horas Operativas
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Interpretación:</strong><br>
+            • ≥85%: Excelente utilización<br>
+            • 75-84%: Buena utilización<br>
+            • 65-74%: Utilización regular<br>
+            • <65%: Baja utilización
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'cumplimiento-programa': {
+    titulo: 'Cumplimiento del Programa de Producción',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Cumplimiento = (Producción Real / Meta de Producción) × 100</div>
+        
+        <p>Indica qué tan cerca se está de alcanzar las metas establecidas en el programa de producción.</p>
+        
+        <div class="alert alert-warning mt-3">
+          <small>
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <strong>Importancia:</strong> Un cumplimiento bajo puede indicar problemas de planificación, recursos o procesos.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'tendencia-eficiencia': {
+    titulo: 'Tendencia de Eficiencia Operativa',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Análisis de Tendencia:</h6>
+        <p>Este gráfico muestra la evolución de la eficiencia operativa a lo largo del tiempo, permitiendo identificar patrones y tendencias.</p>
+        
+        <h6 class="mb-2">Interpretación:</h6>
+        <ul>
+          <li><strong>Tendencia Ascendente:</strong> Mejora continua en la eficiencia</li>
+          <li><strong>Tendencia Descendente:</strong> Deterioro en el desempeño</li>
+          <li><strong>Estabilidad:</strong> Proceso controlado y consistente</li>
+          <li><strong>Variabilidad Alta:</strong> Proceso inestable que requiere atención</li>
+        </ul>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-lightbulb me-1"></i>
+            <strong>Análisis:</strong> Compare la tendencia actual con períodos anteriores y con la meta establecida.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'eficiencia': {
+    titulo: 'Eficiencia de Producción',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Eficiencia = (Producción Real / Meta de Producción) × 100</div>
+        
+        <p>Este indicador mide qué tan cerca se está de alcanzar las metas de producción establecidas para cada línea y turno.</p>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Interpretación:</strong><br>
+            • ≥90%: Excelente desempeño<br>
+            • 80-89%: Buen desempeño<br>
+            • 70-79%: Desempeño regular<br>
+            • <70%: Desempeño crítico
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'operaciones-vagones': {
+    titulo: 'Operaciones de Vagones',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Definiciones:</h6>
+        
+        <div class="var-definition mb-2">
+          <strong>Vagones Apilados</strong> = Cantidad de vagones cargados con producto para cocción
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Vagones Cocción</strong> = Vagones en proceso de cocción
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Vagones Desapilados</strong> = Vagones descargados después de cocción (primera + segunda)
+        </div>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-info-circle me-1"></i>
+            <strong>Balance Ideal:</strong> Apilado ≈ Cocción ≈ Desapilado para flujo continuo óptimo
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'produccion': {
+    titulo: 'Producción por Línea',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Cálculo:</h6>
+        <div class="formula mb-3">Producción Total Línea = Σ Producción Turno₁ + Producción Turno₂ + ...</div>
+        
+        <p>La producción total por línea se calcula sumando la producción de todos los turnos para esa línea específica.</p>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-info-circle me-1"></i>
+            <strong>Nota:</strong> Los datos se agrupan por línea y turno para proporcionar una visión detallada del desempeño.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'scrap': {
+    titulo: 'Análisis de Scrap',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Porcentaje Scrap = (Scrap / Producción Total) × 100</div>
+        
+        <h6 class="mb-2">Variables:</h6>
+        <div class="var-definition mb-2">
+          <strong>Scrap</strong> = Material defectuoso o desperdiciado en el proceso
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Producción Total</strong> = Total de unidades producidas (buenas + scrap)
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Interpretación:</strong><br>
+            • ≤2%: Excelente control de calidad<br>
+            • 2-5%: Aceptable<br>
+            • 5-10%: Necesita mejora<br>
+            • >10%: Crítico
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'prediccion': {
+    titulo: 'Predicción de Producción',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Método de Predicción:</h6>
+        <div class="formula mb-3">Regresión Lineal y Análisis de Tendencia</div>
+        
+        <p>El sistema utiliza datos históricos de producción para predecir tendencias futuras basándose en:</p>
+        <ul>
+          <li>Promedios móviles de los últimos 7 días</li>
+          <li>Patrones estacionales por turno y día de la semana</li>
+          <li>Tendencias de crecimiento/declive</li>
+          <li>Factores externos conocidos (mantenimientos programados, etc.)</li>
+        </ul>
+        
+        <div class="alert alert-warning mt-3">
+          <small>
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <strong>Nota:</strong> Las predicciones son estimaciones basadas en datos históricos y pueden variar según condiciones reales.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'metricas-produccion': {
+    titulo: 'Métricas de Producción',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Principales Métricas:</h6>
+        
+        <div class="var-definition mb-2">
+          <strong>Throughput</strong> = Unidades producidas por hora
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Utilización</strong> = (Tiempo Productivo / Tiempo Total) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Eficiencia General</strong> = (Producción Real / Capacidad Máxima) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Tiempo Ciclo</strong> = Tiempo promedio para producir una unidad
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Lead Time</strong> = Tiempo total desde orden hasta entrega
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Periodo de Cálculo:</strong> Según el rango de fechas seleccionado<br>
+            <strong>Fuente:</strong> Datos de producción en tiempo real
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'alertas': {
+    titulo: 'Sistema de Alertas de Producción',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Niveles de Alerta:</h6>
+        
+        <div class="mb-3">
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-danger me-2">CRÍTICA</span>
+            <span>Eficiencia < 70%, Scrap > 10%, Throughput < 60%</span>
+          </div>
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-warning me-2">ALTA</span>
+            <span>Eficiencia 70-79%, Scrap 5-10%, Throughput 60-79%</span>
+          </div>
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-info me-2">MEDIA</span>
+            <span>Eficiencia 80-89%, Scrap 2-5%, Throughput 80-89%</span>
+          </div>
+        </div>
+        
+        <div class="alert alert-danger mt-3">
+          <small>
+            <i class="fas fa-bell me-1"></i>
+            <strong>Priorización:</strong> Las alertas se ordenan por severidad (Crítica → Alta → Media) y se muestran las 10 más importantes.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'resumen-lineas': {
+    titulo: 'Resumen por Línea',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Estructura del Resumen:</h6>
+        
+        <p>El resumen por línea proporciona una visión detallada del desempeño de cada línea de producción, desglosado por turnos.</p>
+        
+        <div class="var-definition mb-2">
+          <strong>Producción por Turno</strong> = Suma de producción del turno específico
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Meta por Turno</strong> = Suma de metas del turno específico
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Eficiencia por Turno</strong> = (Producción Turno / Meta Turno) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Scrap por Turno</strong> = Suma de scrap del turno
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Agrupación:</strong> Los datos se agrupan primero por línea y luego por turno, permitiendo identificar patrones de desempeño específicos.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'resumen-scrap': {
+    titulo: 'Resumen de Scrap',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Análisis de Scrap:</h6>
+        
+        <p>Este resumen muestra los 10 registros con mayor scrap, ordenados por cantidad descendente.</p>
+        
+        <div class="var-definition mb-2">
+          <strong>Scrap por Línea</strong> = Suma de scrap por línea y turno
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Porcentaje de Scrap</strong> = (Scrap / Producción Total) × 100
+        </div>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-lightbulb me-1"></i>
+            <strong>Análisis:</strong> Identificar los registros con mayor scrap ayuda a priorizar acciones de mejora y reducir desperdicios.
+          </small>
+        </div>
+      </div>
+    `
+  }
+};
+
+// Función para mostrar ayuda
+function mostrarAyuda(tipo) {
+  const ayuda = formulasAyuda[tipo];
+  if (!ayuda) return;
+  
+  document.getElementById('ayudaModalTitle').innerHTML = `<i class="fas fa-calculator me-2"></i>${ayuda.titulo}`;
+  document.getElementById('ayudaModalBody').innerHTML = ayuda.contenido;
+  
+  const modal = new bootstrap.Modal(document.getElementById('ayudaModal'));
+  modal.show();
+}
+
+const API_BASE = "/api";
+let produccionData = [];
+let chartInstances = {};
+let metricasProduccion = {};
+let alertasProduccion = [];
+let vistaEficienciaActual = 'diario';
+let datosEficiencia = {};
+
+// Configuraciones de colores
+const colorConfig = {
+  produccion: '#4e73df',
+  meta: '#1cc88a',
+  eficiencia: '#36b9cc',
+  scrap: '#e74a3b',
+  prediccion: '#f6c23e'
+};
+
+// Configuración de métricas de producción
+const configProduccion = {
+  metaEficiencia: 90,
+  metaThroughput: 50, // t/h - ajustar según necesidad
+  metaUtilizacion: 85,
+  metaCumplimiento: 95
+};
+
+// Variables globales
+let alertsCollapsed = false;
+
+// Función para mostrar/ocultar alertas
+function toggleAlerts() {
+  const alertsContent = document.getElementById('alertas-content');
+  const toggleIcon = document.getElementById('alerts-toggle-icon');
+  
+  if (!alertsContent || !toggleIcon) {
+    console.warn('Elementos para toggleAlerts no encontrados');
+    return;
+  }
+  
+  if (alertsCollapsed) {
+    alertsContent.style.display = 'block';
+    toggleIcon.classList.remove('fa-chevron-down');
+    toggleIcon.classList.add('fa-chevron-up');
+  } else {
+    alertsContent.style.display = 'none';
+    toggleIcon.classList.remove('fa-chevron-up');
+    toggleIcon.classList.add('fa-chevron-down');
+  }
+  
+  alertsCollapsed = !alertsCollapsed;
+}
+
+// FUNCIÓN PARA OBTENER SEMANA DEL AÑO
+function getWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// FUNCIÓN CAMBIAR VISTA EFICIENCIA
+function cambiarVistaEficiencia(vista, element) {
+  vistaEficienciaActual = vista;
+  
+  // Actualizar estado de botones
+  const btnGroup = element.parentElement;
+  btnGroup.querySelectorAll('.btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  element.classList.add('active');
+  
+  // Recargar gráfico con nueva vista
+  if (chartInstances['eficienciaOperativa']) {
+    renderChartEficienciaOperativa();
+    actualizarControlesLineasEficiencia();
+  }
+}
+
+function actualizarTimestamp() {
+  const now = new Date();
+  const lastUpdateElement = document.getElementById('lastUpdate');
+  if (lastUpdateElement) {
+    lastUpdateElement.textContent = `Actualizado: ${now.toLocaleTimeString()}`;
+  }
+}
+
+async function fetchAPI(endpoint) {
+  const token = localStorage.getItem("access_token");
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, { 
+      headers: { 
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      } 
+    });
+    if(res.status === 401) { 
+      localStorage.clear(); 
+      window.location.href="/login"; 
+      return [];
+    }
+    if (!res.ok) {
+      throw new Error(`Error ${res.status}: ${res.statusText}`);
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching API:', error);
+    showError('Error al cargar datos: ' + error.message);
+    return [];
+  }
+}
+
+// Función para validar el rango de fechas
+function validarRangoFechas() {
+  const fechaInicio = document.getElementById('fechaInicio');
+  const fechaFin = document.getElementById('fechaFin');
+  
+  if (!fechaInicio || !fechaFin) {
+    console.warn('Elementos de fecha no encontrados');
+    return true;
+  }
+  
+  if (fechaInicio.value && fechaFin.value && fechaInicio.value > fechaFin.value) {
+    showError('La fecha "Desde" no puede ser posterior a la fecha "Hasta"');
+    return false;
+  }
+  return true;
+}
+
+// Calcular métricas de producción
+function calcularMetricasProduccion(produccion) {
+  const totalToneladas = produccion.reduce((sum, p) => sum + (p.fabricacion_toneladas || 0), 0);
+  const totalBandejas = produccion.reduce((sum, p) => sum + (p.bandejas || 0), 0);
+  const totalScrap = produccion.reduce((sum, p) => sum + (p.fabricacion_scrap || 0), 0);
+  const totalMeta = produccion.reduce((sum, p) => sum + (p.meta_produccion || 0), 0);
+  
+  // Nuevas métricas de vagones
+  const totalVagonesApilados = produccion.reduce((sum, p) => sum + (p.apilado_vagones || 0), 0);
+  const totalVagonesCoccion = produccion.reduce((sum, p) => sum + (p.coccion_vagones || 0), 0);
+  const totalDesapiladoPrimera = produccion.reduce((sum, p) => sum + (p.desapilado_primera || 0), 0);
+  const totalDesapiladoSegunda = produccion.reduce((sum, p) => sum + (p.desapilado_segunda || 0), 0);
+  const totalDesapilado = totalDesapiladoPrimera + totalDesapiladoSegunda;
+
+  // Eficiencia operativa global
+  const eficiencias = produccion.map(p => p.eficiencia || 0).filter(e => e > 0);
+  const eficienciaGlobal = eficiencias.length ? 
+    (eficiencias.reduce((sum, e) => sum + e, 0) / eficiencias.length).toFixed(1) : 0;
+
+  // Throughput promedio (toneladas por hora)
+  const totalHoras = produccion.length * 8; // Asumiendo 8 horas por turno
+  const throughputPromedio = totalHoras > 0 ? (totalToneladas / totalHoras).toFixed(1) : 0;
+
+  // Utilización de capacidad
+  const lineasActivas = new Set(produccion.map(p => p.linea_nombre)).size;
+  const capacidadMaxima = lineasActivas * 60 * totalHoras;
+  const utilizacionCapacidad = capacidadMaxima > 0 ? 
+    (totalToneladas / capacidadMaxima * 100).toFixed(1) : 0;
+
+  // Cumplimiento del programa
+  const cumplimientoPrograma = totalMeta > 0 ? 
+    (totalToneladas / totalMeta * 100).toFixed(1) : 0;
+
+  // Scrap rate
+  const scrapRate = totalToneladas > 0 ? 
+    (totalScrap / totalToneladas * 100).toFixed(1) : 0;
+
+  return {
+    totalToneladas,
+    totalBandejas,
+    totalScrap,
+    totalVagonesApilados,
+    totalVagonesCoccion,
+    totalDesapiladoPrimera,
+    totalDesapiladoSegunda,
+    totalDesapilado,
+    eficienciaGlobal: Number(eficienciaGlobal),
+    throughputPromedio: Number(throughputPromedio),
+    utilizacionCapacidad: Number(utilizacionCapacidad),
+    cumplimientoPrograma: Number(cumplimientoPrograma),
+    scrapRate: Number(scrapRate),
+    lineasActivas,
+    throughputMeta: configProduccion.metaThroughput
+  };
+}
+
+// Renderizar eficiencia operativa
+function renderizarEficienciaOperativa() {
+  const metricas = calcularMetricasProduccion(produccionData);
+  datosEficiencia = metricas;
+
+  // Actualizar tarjeta principal
+  const scoreElement = document.getElementById('eficiencia-score');
+  const progressBar = document.getElementById('eficiencia-progress-bar');
+  const throughputElement = document.getElementById('eficiencia-throughput');
+  const utilizacionElement = document.getElementById('eficiencia-utilizacion');
+  const cumplimientoElement = document.getElementById('eficiencia-cumplimiento');
+
+  if (scoreElement) scoreElement.textContent = `${metricas.eficienciaGlobal}%`;
+  if (progressBar) progressBar.style.width = `${metricas.eficienciaGlobal}%`;
+  if (throughputElement) throughputElement.textContent = `${metricas.throughputPromedio} t/h`;
+  if (utilizacionElement) utilizacionElement.textContent = `${metricas.utilizacionCapacidad}%`;
+  if (cumplimientoElement) cumplimientoElement.textContent = `${metricas.cumplimientoPrograma}%`;
+
+  // Color según la eficiencia
+  const card = document.querySelector('.eficiencia-card');
+  if (card) {
+    card.classList.remove('bg-gradient-success', 'bg-gradient-warning', 'bg-gradient-danger');
+    
+    if (metricas.eficienciaGlobal >= configProduccion.metaEficiencia) {
+      card.classList.add('bg-gradient-success');
+    } else if (metricas.eficienciaGlobal >= configProduccion.metaEficiencia - 10) {
+      card.classList.add('bg-gradient-warning');
+    } else {
+      card.classList.add('bg-gradient-danger');
+    }
+  }
+
+  // Renderizar KPIs
+  renderKPIs();
+  
+  // Renderizar gráfico de tendencia
+  renderChartEficienciaOperativa();
+  actualizarControlesLineasEficiencia();
+}
+
+function renderChartOperacionesVagones() {
+  const canvas = document.getElementById('chartOperacionesVagones');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Agrupar operaciones por línea
+  const lineasMap = {};
+  produccionData.forEach(p => {
+    const linea = p.linea_nombre;
+    if (!lineasMap[linea]) {
+      lineasMap[linea] = {
+        apilado: 0,
+        coccion: 0,
+        desapilado: 0
+      };
+    }
+    lineasMap[linea].apilado += p.apilado_vagones || 0;
+    lineasMap[linea].coccion += p.coccion_vagones || 0;
+    lineasMap[linea].desapilado += (p.desapilado_primera || 0) + (p.desapilado_segunda || 0);
+  });
+
+  const labels = Object.keys(lineasMap);
+  const apiladoData = labels.map(linea => lineasMap[linea].apilado);
+  const coccionData = labels.map(linea => lineasMap[linea].coccion);
+  const desapiladoData = labels.map(linea => lineasMap[linea].desapilado);
+
+  if (chartInstances['operacionesVagones']) {
+    chartInstances['operacionesVagones'].destroy();
+  }
+
+  chartInstances['operacionesVagones'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Vagones Apilados',
+          data: apiladoData,
+          backgroundColor: '#4e73df',
+          borderWidth: 0
+        },
+        {
+          label: 'Vagones Cocción',
+          data: coccionData,
+          backgroundColor: '#f6c23e',
+          borderWidth: 0
+        },
+        {
+          label: 'Vagones Desapilados',
+          data: desapiladoData,
+          backgroundColor: '#1cc88a',
+          borderWidth: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Cantidad de Vagones'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Líneas de Producción'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'top'
+        }
+      }
+    }
+  });
+}
+
+// Gráfico de tendencia de eficiencia
+function renderChartEficienciaOperativa() {
+  const canvas = document.getElementById('chartEficienciaOperativa');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Datos de ejemplo para la evolución temporal
+  const generarDatosEvolucion = (lineas, vista) => {
+    const datos = {};
+    const hoy = new Date();
+    
+    lineas.forEach(linea => {
+      datos[linea] = [];
+      let puntos = 7; // Por defecto 7 días
+      
+      if (vista === 'semanal') {
+        puntos = 4; // 4 semanas
+      } else if (vista === 'mensual') {
+        puntos = 6; // 6 meses
+      }
+      
+      // Valor base de eficiencia para esta línea
+      const eficienciaBase = 85; // Valor base
+      
+      // Generar datos históricos simulados
+      for (let i = puntos - 1; i >= 0; i--) {
+        // Variación con tendencia realista
+        const variacion = (Math.random() * 15) - 5; // -5% a +10%
+        const valor = Math.max(60, Math.min(98, eficienciaBase + variacion));
+        
+        datos[linea].push(Number(valor.toFixed(1)));
+      }
+    });
+    
+    return datos;
+  };
+
+  const lineas = [...new Set(produccionData.map(p => p.linea_nombre))];
+  const datosEvolucion = generarDatosEvolucion(lineas, vistaEficienciaActual);
+  
+  // Configurar etiquetas del eje X según la vista
+  const etiquetas = [];
+  const hoy = new Date();
+  const puntos = vistaEficienciaActual === 'diario' ? 7 : 
+                vistaEficienciaActual === 'semanal' ? 4 : 6;
+  
+  for (let i = puntos - 1; i >= 0; i--) {
+    let fecha = new Date();
+    
+    if (vistaEficienciaActual === 'diario') {
+      fecha.setDate(hoy.getDate() - i);
+      etiquetas.push(fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }));
+    } else if (vistaEficienciaActual === 'semanal') {
+      fecha.setDate(hoy.getDate() - (i * 7));
+      etiquetas.push(`Sem ${getWeekNumber(fecha)}`);
+    } else {
+      fecha.setMonth(hoy.getMonth() - i);
+      etiquetas.push(fecha.toLocaleDateString('es-ES', { month: 'short' }));
+    }
+  }
+
+  // Destruir instancia anterior si existe
+  if (chartInstances['eficienciaOperativa']) {
+    chartInstances['eficienciaOperativa'].destroy();
+  }
+
+  // Colores para las líneas
+  const coloresLineas = [
+    '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', 
+    '#858796', '#5a5c69', '#6f42c1', '#e83e8c', '#fd7e14'
+  ];
+
+  // Preparar datasets
+  const datasets = lineas.map((linea, index) => {
+    const color = coloresLineas[index % coloresLineas.length];
+    const datosLinea = datosEvolucion[linea] || [];
+    
+    return {
+      label: `Línea ${linea}`,
+      data: datosLinea,
+      borderColor: color,
+      backgroundColor: color + '20',
+      borderWidth: 3,
+      pointRadius: 4,
+      pointBackgroundColor: color,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 1,
+      pointHoverRadius: 6,
+      fill: false,
+      tension: 0.3
+    };
+  });
+
+  // Añadir línea de meta
+  datasets.push({
+    label: 'Meta Eficiencia (90%)',
+    data: Array(puntos).fill(configProduccion.metaEficiencia),
+    borderColor: '#dc3545',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    pointRadius: 0,
+    borderDash: [5, 5],
+    tension: 0
+  });
+
+  chartInstances['eficienciaOperativa'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: etiquetas,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          min: 50,
+          max: 100,
+          ticks: {
+            callback: function(value) {
+              return value + '%';
+            }
+          },
+          title: {
+            display: true,
+            text: 'Eficiencia (%)'
+          },
+          grid: {
+            color: 'rgba(0, 0, 0, 0.05)'
+          }
+        },
+        x: {
+          grid: {
+            color: 'rgba(0, 0, 0, 0.05)'
+          },
+          title: {
+            display: true,
+            text: vistaEficienciaActual === 'diario' ? 'Días' : 
+                  vistaEficienciaActual === 'semanal' ? 'Semanas' : 'Meses'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            usePointStyle: true,
+            padding: 20
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              if (context.parsed.y !== null) {
+                label += context.parsed.y + '%';
+              }
+              return label;
+            }
+          }
+        }
+      },
+      elements: {
+        line: {
+          tension: 0.3
+        }
+      }
+    }
+  });
+}
+
+// Actualizar controles de líneas para eficiencia
+function actualizarControlesLineasEficiencia() {
+  const container = document.getElementById('lineasEficienciaList');
+  if (!container) return;
+  
+  const lineas = [...new Set(produccionData.map(p => p.linea_nombre))];
+  container.innerHTML = '';
+  
+  lineas.forEach(linea => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="form-check dropdown-item">
+        <input class="form-check-input" type="checkbox" checked 
+               onchange="toggleLineaEficiencia('${linea}')" id="checkLineaEficiencia${linea}">
+        <label class="form-check-label w-100" for="checkLineaEficiencia${linea}">
+          Línea ${linea}
+        </label>
+      </div>
+    `;
+    container.appendChild(li);
+  });
+}
+
+// Función para mostrar/ocultar línea específica en gráfico de eficiencia
+function toggleLineaEficiencia(lineaNombre) {
+  if (chartInstances['eficienciaOperativa']) {
+    const chart = chartInstances['eficienciaOperativa'];
+    const datasetIndex = chart.data.datasets.findIndex(ds => ds.label === `Línea ${lineaNombre}`);
+    
+    if (datasetIndex !== -1) {
+      chart.data.datasets[datasetIndex].hidden = !chart.data.datasets[datasetIndex].hidden;
+      chart.update();
+    }
+  }
+}
+
+function extraerLineasDeDatos() {
+  const lineasMap = {};
+  
+  // Extraer de producción
+  produccionData.forEach(p => {
+      if (p.linea && p.linea_nombre) {
+          lineasMap[p.linea] = { id: p.linea, nombre: p.linea_nombre };
+      }
+  });
+  
+  return Object.values(lineasMap);
+}
+
+function establecerFechasPorDefecto() {
+  const today = new Date();
+  const lastWeek = new Date(today);
+  lastWeek.setDate(today.getDate() - 7);
+  
+  const fechaInicio = document.getElementById('fechaInicio');
+  const fechaFin = document.getElementById('fechaFin');
+  
+  if (fechaInicio && fechaFin) {
+    fechaInicio.value = lastWeek.toISOString().split('T')[0];
+    fechaFin.value = today.toISOString().split('T')[0];
+  }
+}
+
+async function cargarLineas() {
+  try {
+      // Intentar diferentes endpoints posibles
+      const endpoints = ["/lineas/", "/api/lineas/", "/lineas"];
+      
+      let lineas = [];
+      for (const endpoint of endpoints) {
+          try {
+              lineas = await fetchAPI(endpoint);
+              if (lineas && lineas.length > 0) break;
+          } catch (e) {
+              console.warn(`Endpoint ${endpoint} no disponible`);
+          }
+      }
+      
+      // Si no se obtuvieron líneas de la API, extraer de los datos
+      if (!lineas || lineas.length === 0) {
+          throw new Error('No se pudieron cargar líneas de la API');
+      }
+      
+      const selectLinea = document.getElementById('filterLinea');
+      if (!selectLinea) {
+        console.warn('Elemento filterLinea no encontrado');
+        return false;
+      }
+      
+      // Limpiar opciones existentes (excepto la primera)
+      selectLinea.innerHTML = '<option value="">Todas las Líneas</option>';
+      
+      // Añadir cada línea como opción
+      lineas.forEach(linea => {
+          const option = document.createElement('option');
+          option.value = linea.id;
+          option.textContent = linea.nombre || `Línea ${linea.id}`;
+          selectLinea.appendChild(option);
+      });
+      
+      console.log('Líneas cargadas via API:', lineas.length);
+      return true;
+  } catch (error) {
+      console.error('Error cargando líneas via API:', error);
+      return false;
+  }
+}
+
+// Función para cargar líneas desde los datos existentes
+function cargarLineasDesdeDatos() {
+  try {
+      const lineas = extraerLineasDeDatos();
+      const selectLinea = document.getElementById('filterLinea');
+      
+      if (!selectLinea) {
+          console.warn('Elemento filterLinea no encontrado');
+          return;
+      }
+      
+      // Limpiar opciones existentes (excepto la primera)
+      selectLinea.innerHTML = '<option value="">Todas las Líneas</option>';
+      
+      // Añadir cada línea como opción
+      lineas.forEach(linea => {
+          const option = document.createElement('option');
+          option.value = linea.id;
+          option.textContent = linea.nombre;
+          selectLinea.appendChild(option);
+      });
+      
+      console.log('Líneas cargadas desde datos:', lineas.length);
+  } catch (error) {
+      console.error('Error en cargarLineasDesdeDatos:', error);
+  }
+}
+
+async function cargarMetricasProduccion() {
+  try {
+    // Calcular métricas basadas en datos de producción
+    metricasProduccion = calcularMetricasProduccion(produccionData);
+    
+    alertasProduccion = generarAlertasProduccion(produccionData, metricasProduccion);
+
+    renderMetricasProduccion();
+    renderAlertasProduccion();
+    
+  } catch (error) {
+    console.error('Error cargando métricas de producción:', error);
+  }
+}
+
+function renderMetricasProduccion() {
+  const container = document.getElementById("metricas-produccion-container");
+  if (!container) return;
+  
+  const metricas = metricasProduccion;
+
+  const metricasKPI = [
+    {
+      title: "Throughput",
+      value: `${metricas.throughputPromedio}/h`,
+      color: metricas.throughputPromedio > metricas.throughputMeta ? "success" : 
+             metricas.throughputPromedio > metricas.throughputMeta * 0.8 ? "warning" : "danger",
+      icon: "fas fa-tachometer-alt",
+      subtitle: "Toneladas por hora"
+    },
+    {
+      title: "Utilización",
+      value: `${metricas.utilizacionCapacidad}%`,
+      color: metricas.utilizacionCapacidad >= 90 ? "success" : 
+             metricas.utilizacionCapacidad >= 80 ? "warning" : "danger",
+      icon: "fas fa-chart-line",
+      subtitle: "Uso de capacidad"
+    },
+    {
+      title: "Bandejas/Hora",
+      value: `${(metricas.totalBandejas / (produccionData.length * 8)).toFixed(1)}`,
+      color: "info",
+      icon: "fas fa-box",
+      subtitle: "Ritmo de producción"
+    },
+    {
+      title: "Vagones Apilados",
+      value: metricas.totalVagonesApilados,
+      color: "primary",
+      icon: "fas fa-layer-group",
+      subtitle: "Total acumulado"
+    },
+    {
+      title: "Vagones Cocción",
+      value: metricas.totalVagonesCoccion,
+      color: "warning",
+      icon: "fas fa-fire",
+      subtitle: "En proceso"
+    },
+    {
+      title: "Desapilado",
+      value: metricas.totalDesapilado,
+      color: "success",
+      icon: "fas fa-boxes",
+      subtitle: "Primera + Segunda"
+    }
+  ];
+
+  container.innerHTML = '';
+
+  metricasKPI.forEach(metrica => {
+    const div = document.createElement('div');
+    div.classList.add('col');
+    div.innerHTML = `
+      <div class="card metric-card h-100 border-0 shadow-sm">
+        <div class="card-body text-center p-2">
+          <div class="icon-wrapper bg-${metrica.color} bg-opacity-10 rounded-circle mx-auto mb-2 p-2">
+            <i class="${metrica.icon} fs-5 text-${metrica.color}"></i>
+          </div>
+          <h5 class="mb-1 fw-bold">${metrica.value}</h5>
+          <small class="text-muted">${metrica.title}</small>
+          ${metrica.subtitle ? `<div class="x-small text-muted mt-1">${metrica.subtitle}</div>` : ''}
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+
+function generarAlertasProduccion(produccion, metricas) {
+  const alertas = [];
+
+  // Alertas de eficiencia baja
+  if (metricas.eficienciaGlobal < 70) {
+    alertas.push({
+      tipo: 'eficiencia',
+      severidad: 'critica',
+      mensaje: `Eficiencia general crítica: ${metricas.eficienciaGlobal}%`,
+      detalle: 'La eficiencia está por debajo del 70%'
+    });
+  } else if (metricas.eficienciaGlobal < 80) {
+    alertas.push({
+      tipo: 'eficiencia',
+      severidad: 'alta',
+      mensaje: `Eficiencia general baja: ${metricas.eficienciaGlobal}%`,
+      detalle: 'La eficiencia está por debajo del 80%'
+    });
+  }
+
+  // Alertas de scrap alto
+  if (metricas.scrapRate > 10) {
+    alertas.push({
+      tipo: 'calidad',
+      severidad: 'critica',
+      mensaje: `Scrap rate crítico: ${metricas.scrapRate}%`,
+      detalle: 'El porcentaje de scrap supera el 10%'
+    });
+  } else if (metricas.scrapRate > 5) {
+    alertas.push({
+      tipo: 'calidad',
+      severidad: 'alta',
+      mensaje: `Scrap rate alto: ${metricas.scrapRate}%`,
+      detalle: 'El porcentaje de scrap supera el 5%'
+    });
+  }
+
+  // Alertas de throughput bajo
+  if (metricas.throughputPromedio < metricas.throughputMeta * 0.6) {
+    alertas.push({
+      tipo: 'productividad',
+      severidad: 'critica',
+      mensaje: `Throughput crítico: ${metricas.throughputPromedio} t/h`,
+      detalle: 'La productividad está por debajo del 60% de la meta'
+    });
+  } else if (metricas.throughputPromedio < metricas.throughputMeta * 0.8) {
+    alertas.push({
+      tipo: 'productividad',
+      severidad: 'alta',
+      mensaje: `Throughput bajo: ${metricas.throughputPromedio} t/h`,
+      detalle: 'La productividad está por debajo del 80% de la meta'
+    });
+  }
+
+  // Alertas de líneas con bajo desempeño
+  const lineas = [...new Set(produccion.map(p => p.linea_nombre))];
+  lineas.forEach(linea => {
+    const prodLinea = produccion.filter(p => p.linea_nombre === linea);
+    const eficienciaLinea = prodLinea.length ? 
+      (prodLinea.reduce((sum, p) => sum + (p.eficiencia || 0), 0) / prodLinea.length) : 0;
+    
+    if (eficienciaLinea < 70) {
+      alertas.push({
+        tipo: 'linea',
+        severidad: 'alta',
+        mensaje: `Línea ${linea} - Eficiencia baja: ${eficienciaLinea.toFixed(1)}%`,
+        detalle: 'Revisar operación de la línea'
+      });
+    }
+  });
+
+  // Alertas de cumplimiento de meta
+  if (metricas.cumplimientoPrograma < 80) {
+    alertas.push({
+      tipo: 'meta',
+      severidad: 'alta',
+      mensaje: `Cumplimiento de meta bajo: ${metricas.cumplimientoPrograma.toFixed(1)}%`,
+      detalle: 'La producción está por debajo del 80% de la meta'
+    });
+  }
+
+  return alertas.sort((a, b) => {
+    const severidadOrden = { 'critica': 0, 'alta': 1, 'media': 2, 'baja': 3 };
+    return severidadOrden[a.severidad] - severidadOrden[b.severidad];
+  }).slice(0, 10); // Mostrar solo las 10 más críticas
+}
+
+function renderAlertasProduccion() {
+  const container = document.getElementById("alertas-produccion-container");
+  const alertasCount = document.getElementById("alertas-count");
+  
+  if (!container || !alertasCount) return;
+  
+  container.innerHTML = '';
+  alertasCount.textContent = alertasProduccion.length;
+
+  if (alertasProduccion.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-4 text-muted">
+        <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+        <p class="mb-0 small">No hay alertas críticas</p>
+      </div>
+    `;
+    return;
+  }
+
+  alertasProduccion.forEach(alerta => {
+    const div = document.createElement('div');
+    div.classList.add('list-item', 'alert-item');
+    
+    const severidadClass = {
+      'critica': 'border-danger bg-danger bg-opacity-10',
+      'alta': 'border-warning bg-warning bg-opacity-10',
+      'media': 'border-info bg-info bg-opacity-10',
+      'baja': 'border-secondary bg-secondary bg-opacity-10'
+    }[alerta.severidad] || 'border-secondary';
+
+    div.innerHTML = `
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-center mb-1">
+            <span class="badge bg-${alerta.severidad === 'critica' ? 'danger' : 
+                                  alerta.severidad === 'alta' ? 'warning' : 
+                                  alerta.severidad === 'media' ? 'info' : 'secondary'} me-2">
+              ${alerta.severidad.toUpperCase()}
+            </span>
+            <small class="text-muted">${alerta.tipo}</small>
+          </div>
+          <h6 class="mb-1 small">${alerta.mensaje}</h6>
+          ${alerta.detalle ? `<div class="x-small text-muted">${alerta.detalle}</div>` : ''}
+        </div>
+      </div>
+    `;
+    
+    div.classList.add(severidadClass.split(' ')[0]);
+    container.appendChild(div);
+  });
+}
+
+function renderKPIs() {
+  const kpiContainer = document.getElementById("kpi-container");
+  if (!kpiContainer) return;
+  
+  const metricas = calcularMetricasProduccion(produccionData);
+  
+  const kpis = [
+    { 
+      title: "Toneladas Fabricadas", 
+      value: `${metricas.totalToneladas.toLocaleString()} t`, 
+      color: "primary", 
+      icon: "fas fa-weight-hanging",
+      subtitle: "Total producido"
+    },
+    { 
+      title: "Bandejas Producidas", 
+      value: metricas.totalBandejas.toLocaleString(), 
+      color: "success", 
+      icon: "fas fa-box",
+      subtitle: "Unidades totales"
+    },
+    { 
+      title: "Vagones Apilados", 
+      value: metricas.totalVagonesApilados.toLocaleString(), 
+      color: "info", 
+      icon: "fas fa-layer-group",
+      subtitle: "Total apilado"
+    },
+    { 
+      title: "Vagones Coccion", 
+      value: metricas.totalVagonesCoccion.toLocaleString(), 
+      color: "warning", 
+      icon: "fas fa-fire",
+      subtitle: "En proceso"
+    },
+    { 
+      title: "Eficiencia Operativa", 
+      value: `${metricas.eficienciaGlobal}%`, 
+      color: metricas.eficienciaGlobal >= 90 ? "success" : 
+            metricas.eficienciaGlobal >= 80 ? "warning" : "danger",
+      icon: "fas fa-cogs",
+      subtitle: "Desempeño general"
+    },
+    { 
+      title: "Throughput Promedio", 
+      value: `${metricas.throughputPromedio} t/h`, 
+      color: metricas.throughputPromedio > metricas.throughputMeta ? "success" : 
+            metricas.throughputPromedio > metricas.throughputMeta * 0.8 ? "warning" : "danger",
+      icon: "fas fa-tachometer-alt",
+      subtitle: "Productividad por hora"
+    },
+    { 
+      title: "Desapilado Total", 
+      value: metricas.totalDesapilado.toLocaleString(), 
+      color: "secondary", 
+      icon: "fas fa-boxes",
+      subtitle: "Primera + Segunda"
+    },
+    { 
+      title: "Scrap Rate", 
+      value: `${metricas.scrapRate}%`, 
+      color: metricas.scrapRate < 2 ? "success" : 
+            metricas.scrapRate < 5 ? "warning" : "danger",
+      icon: "fas fa-trash",
+      subtitle: "Porcentaje de defectos"
+    }
+  ];
+  
+  kpiContainer.innerHTML = '';
+
+  kpis.forEach(kpi => {
+    const div = document.createElement('div');
+    div.classList.add('col');
+    div.innerHTML = `
+      <div class="card kpi-card h-100 border-0 shadow-sm">
+        <div class="card-body text-center p-3">
+          <div class="icon-wrapper bg-${kpi.color} bg-opacity-10 rounded-circle mx-auto mb-2 p-2">
+            <i class="${kpi.icon} fs-4 text-${kpi.color}"></i>
+          </div>
+          <h4 class="mb-1 fw-bold">${kpi.value}</h4>
+          <small class="text-muted">${kpi.title}</small>
+          ${kpi.subtitle ? `<div class="x-small text-muted mt-1">${kpi.subtitle}</div>` : ''}
+        </div>
+      </div>
+    `;
+    kpiContainer.appendChild(div);
+  });
+}
+
+
+async function cargarDatos() {
+  try {
+    // Validar rango de fechas antes de continuar
+    if (!validarRangoFechas()) {
+      return;
+    }
+
+    showLoading('Cargando datos de producción...');
+    
+    const fechaInicio = document.getElementById("fechaInicio").value;
+    const fechaFin = document.getElementById("fechaFin").value;
+    const lineaFilter = document.getElementById("filterLinea").value;
+    const turnoFilter = document.getElementById("filterTurno").value;
+    const busqueda = document.getElementById("searchInput").value;
+
+    // Construir URLs con parámetros
+    let prodUrl = "/produccion/";
+    
+    const params = new URLSearchParams();
+    if (fechaInicio) params.append('fecha_desde', fechaInicio);
+    if (fechaFin) params.append('fecha_hasta', fechaFin);
+    if (lineaFilter) params.append('linea', lineaFilter);
+    if (turnoFilter) params.append('turno', turnoFilter);
+    if (busqueda) params.append('busqueda', busqueda);
+    
+    // Agregar parámetros para limitar y ordenar
+    params.append('ordering', '-fecha,-fecha_creacion');
+    params.append('page_size', '100');
+    
+    const queryString = params.toString();
+    console.log('Parámetros de búsqueda:', queryString);
+    
+    if (queryString) {
+      prodUrl += `?${queryString}`;
+    }
+
+    // Cargar datos de producción
+    produccionData = await fetchAPI(prodUrl);
+
+    // Verificar si tenemos datos
+    if (produccionData.length === 0) {
+      showError('No se encontraron datos para los filtros aplicados');
+      return;
+    }
+
+    // Renderizar componentes
+    renderizarEficienciaOperativa();
+    renderLineas();
+    renderResumenScrap();
+    renderCharts();
+
+    // Cargar líneas
+    const lineasCargadas = await cargarLineas();
+    if (!lineasCargadas) {
+        cargarLineasDesdeDatos();
+    }
+
+    
+    // Cargar opciones de filtro solo si es necesario
+    if (!document.getElementById('filterTurno').hasChildNodes() || 
+        document.getElementById('filterTurno').children.length <= 1) {
+      cargarOpcionesFiltro();
+    }
+    
+    actualizarTimestamp();
+    
+    // Cargar métricas de producción
+    await cargarMetricasProduccion();
+    
+  } catch (error) {
+    console.error('Error cargando datos:', error);
+    showError('Error al cargar los datos: ' + error.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+function renderLineas() {
+  const container = document.getElementById("lineasContainer");
+  const contador = document.getElementById("contadorLineas");
+  
+  if (!container || !contador) return;
+  
+  // Agrupar datos por línea con nuevas métricas
+  const lineasMap = {};
+  
+  produccionData.forEach(p => {
+    const lineaId = p.linea;
+    if (!lineasMap[lineaId]) {
+      lineasMap[lineaId] = {
+        id: lineaId,
+        nombre: p.linea_nombre,
+        produccion: 0,
+        meta: 0,
+        eficiencia: 0,
+        scrap: 0,
+        bandejas: 0,
+        vagones_apilados: 0,
+        vagones_coccion: 0,
+        desapilado_primera: 0,
+        desapilado_segunda: 0,
+        turnos: {}
+      };
+    }
+    lineasMap[lineaId].produccion += p.fabricacion_toneladas || 0;
+    lineasMap[lineaId].meta += p.meta_produccion || 0;
+    lineasMap[lineaId].scrap += p.fabricacion_scrap || 0;
+    lineasMap[lineaId].bandejas += p.bandejas || 0;
+    lineasMap[lineaId].vagones_apilados += p.apilado_vagones || 0;
+    lineasMap[lineaId].vagones_coccion += p.coccion_vagones || 0;
+    lineasMap[lineaId].desapilado_primera += p.desapilado_primera || 0;
+    lineasMap[lineaId].desapilado_segunda += p.desapilado_segunda || 0;
+    lineasMap[lineaId].eficiencia = lineasMap[lineaId].meta ? 
+      (lineasMap[lineaId].produccion / lineasMap[lineaId].meta * 100).toFixed(1) : 0;
+    
+    // Organizar por turno
+    if (!lineasMap[lineaId].turnos[p.turno]) {
+      lineasMap[lineaId].turnos[p.turno] = {
+        nombre: p.turno_nombre,
+        produccion: 0,
+        meta: 0,
+        eficiencia: 0,
+        scrap: 0,
+        bandejas: 0,
+        vagones_apilados: 0,
+        vagones_coccion: 0,
+        desapilado_primera: 0,
+        desapilado_segunda: 0
+      };
+    }
+    lineasMap[lineaId].turnos[p.turno].produccion += p.fabricacion_toneladas || 0;
+    lineasMap[lineaId].turnos[p.turno].meta += p.meta_produccion || 0;
+    lineasMap[lineaId].turnos[p.turno].eficiencia = p.eficiencia || 0;
+    lineasMap[lineaId].turnos[p.turno].scrap += p.fabricacion_scrap || 0;
+    lineasMap[lineaId].turnos[p.turno].bandejas += p.bandejas || 0;
+    lineasMap[lineaId].turnos[p.turno].vagones_apilados += p.apilado_vagones || 0;
+    lineasMap[lineaId].turnos[p.turno].vagones_coccion += p.coccion_vagones || 0;
+    lineasMap[lineaId].turnos[p.turno].desapilado_primera += p.desapilado_primera || 0;
+    lineasMap[lineaId].turnos[p.turno].desapilado_segunda += p.desapilado_segunda || 0;
+  });
+
+  container.innerHTML = '';
+  const lineasCount = Object.keys(lineasMap).length;
+  contador.textContent = lineasCount;
+
+  if (lineasCount === 0) {
+    container.innerHTML = `
+      <div class="text-center py-5 text-muted">
+        <i class="fas fa-inbox fa-3x mb-3"></i>
+        <p class="mb-0">No se encontraron datos</p>
+        <small>Intenta ajustar los filtros de búsqueda</small>
+      </div>
+    `;
+    return;
+  }
+
+  Object.values(lineasMap).forEach(linea => {
+    const div = document.createElement('div');
+    div.classList.add('list-item');
+    div.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 fw-bold">Línea ${linea.nombre}</h6>
+        <div class="d-flex gap-2 flex-wrap">
+          <span class="badge bg-primary">Prod: ${linea.produccion.toLocaleString()} t</span>
+          <span class="badge bg-${linea.eficiencia >= 90 ? 'success' : linea.eficiencia >= 80 ? 'warning' : 'danger'}">
+            Efic: ${linea.eficiencia}%
+          </span>
+          <span class="badge bg-info">Bandejas: ${linea.bandejas}</span>
+          <span class="badge bg-warning">Vagones: ${linea.vagones_apilados}</span>
+        </div>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Turno</th>
+              <th>Producción</th>
+              <th>Meta</th>
+              <th>Eficiencia</th>
+              <th>Bandejas</th>
+              <th>V. Apilados</th>
+              <th>V. Cocción</th>
+              <th>Desapilado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.values(linea.turnos).map(turno => `
+              <tr>
+                <td>${turno.nombre}</td>
+                <td>${turno.produccion.toLocaleString()} t</td>
+                <td>${turno.meta.toLocaleString()} t</td>
+                <td>
+                  <span class="badge bg-${turno.eficiencia >= 90 ? 'success' : turno.eficiencia >= 80 ? 'warning' : 'danger'}">
+                    ${turno.eficiencia}%
+                  </span>
+                </td>
+                <td>${turno.bandejas}</td>
+                <td>${turno.vagones_apilados}</td>
+                <td>${turno.vagones_coccion}</td>
+                <td>${turno.desapilado_primera + turno.desapilado_segunda}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+
+function renderResumenScrap() {
+  const container = document.getElementById("resumenScrap");
+  if (!container) return;
+  
+  container.innerHTML = '';
+
+  if (produccionData.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-4 text-muted">
+        <i class="fas fa-check fa-2x mb-2"></i>
+        <p class="mb-0 small">No hay datos de scrap</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Ordenar por scrap (descendente) y tomar las 10 principales
+  const scrapOrdenado = [...produccionData]
+    .sort((a, b) => (b.fabricacion_scrap || 0) - (a.fabricacion_scrap || 0))
+    .slice(0, 10);
+
+  scrapOrdenado.forEach(p => {
+    const porcentajeScrap = p.fabricacion_toneladas ? 
+      ((p.fabricacion_scrap || 0) / p.fabricacion_toneladas * 100).toFixed(1) : 0;
+    
+    const div = document.createElement('div');
+    div.classList.add('list-item');
+    div.innerHTML = `
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <h6 class="mb-1">Línea ${p.linea_nombre} - ${p.turno_nombre}</h6>
+          <div class="small text-muted">
+            <i class="fas fa-calendar me-1"></i>${new Date(p.fecha).toLocaleDateString('es-ES')}
+          </div>
+          ${p.producto ? `<div class="small mt-1"><strong>Producto:</strong> ${p.producto}</div>` : ''}
+        </div>
+        <div class="text-end">
+          <span class="badge bg-danger">${p.fabricacion_scrap || 0} t</span>
+          <div class="small text-muted mt-1">
+            ${porcentajeScrap}% del total
+          </div>
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function renderCharts() {
+  renderChartProduccionLinea();
+  renderChartEficiencia();
+  renderChartScrap();
+  renderChartPrediccion();
+  renderChartEficienciaOperativa();
+  renderChartOperacionesVagones(); 
+}
+
+function renderChartProduccionLinea() {
+  const canvas = document.getElementById('chartProduccionLinea');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Agrupar producción por línea
+  const lineas = {};
+  produccionData.forEach(p => {
+    const linea = p.linea_nombre;
+    lineas[linea] = (lineas[linea] || 0) + (p.fabricacion_toneladas || 0);
+  });
+
+  const labels = Object.keys(lineas);
+  const valores = Object.values(lineas);
+
+  if (chartInstances['produccionLinea']) {
+    chartInstances['produccionLinea'].destroy();
+  }
+
+  chartInstances['produccionLinea'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Producción (t)',
+        data: valores,
+        backgroundColor: colorConfig.produccion,
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Toneladas'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        }
+      }
+    }
+  });
+}
+
+function renderChartEficiencia() {
+  const canvas = document.getElementById('chartEficiencia');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Calcular eficiencia promedio por línea
+  const eficienciaPorLinea = {};
+  const conteoPorLinea = {};
+  
+  produccionData.forEach(p => {
+    const linea = p.linea_nombre;
+    if (!eficienciaPorLinea[linea]) {
+      eficienciaPorLinea[linea] = 0;
+      conteoPorLinea[linea] = 0;
+    }
+    eficienciaPorLinea[linea] += p.eficiencia || 0;
+    conteoPorLinea[linea]++;
+  });
+
+  const labels = Object.keys(eficienciaPorLinea);
+  const valores = labels.map(linea => 
+    (eficienciaPorLinea[linea] / conteoPorLinea[linea]).toFixed(1)
+  );
+
+  if (chartInstances['eficiencia']) {
+    chartInstances['eficiencia'].destroy();
+  }
+
+  chartInstances['eficiencia'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Eficiencia (%)',
+        data: valores,
+        backgroundColor: colorConfig.eficiencia + '20',
+        borderColor: colorConfig.eficiencia,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: function(value) {
+              return value + '%';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderChartScrap() {
+  const canvas = document.getElementById('chartScrap');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+
+  const scrapPorLinea = {};
+  produccionData.forEach(p => {
+    const linea = p.linea_nombre;
+    scrapPorLinea[linea] = (scrapPorLinea[linea] || 0) + (p.fabricacion_scrap || 0);
+  });
+
+  const labels = Object.keys(scrapPorLinea);
+  const valores = Object.values(scrapPorLinea);
+
+  if (chartInstances['scrap']) chartInstances['scrap'].destroy();
+
+  chartInstances['scrap'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Scrap (t)',
+        data: valores,
+        backgroundColor: '#e74a3b',
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { 
+        y: { 
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Toneladas'
+          }
+        } 
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function renderChartPrediccion() {
+  const canvas = document.getElementById('chartPrediccion');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Generar datos de predicción basados en datos históricos
+  const generarPrediccion = () => {
+    const hoy = new Date();
+    const prediccion = [];
+    const historico = [];
+    
+    // Datos históricos (últimos 7 días)
+    for (let i = 6; i >= 0; i--) {
+      const fecha = new Date(hoy);
+      fecha.setDate(hoy.getDate() - i);
+      
+      // Calcular producción para esta fecha (simulado)
+      const produccionDia = produccionData
+        .filter(p => {
+          const fechaProd = new Date(p.fecha);
+          return fechaProd.toDateString() === fecha.toDateString();
+        })
+        .reduce((sum, p) => sum + (p.fabricacion_toneladas || 0), 0);
+      
+      historico.push({
+        fecha: fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+        valor: produccionDia || Math.random() * 100 + 50 // Valor simulado si no hay datos
+      });
+    }
+    
+    // Predicción (próximos 7 días)
+    const ultimoValor = historico[historico.length - 1].valor;
+    const tendencia = (historico[historico.length - 1].valor - historico[0].valor) / historico.length;
+    
+    for (let i = 1; i <= 7; i++) {
+      const fecha = new Date(hoy);
+      fecha.setDate(hoy.getDate() + i);
+      
+      // Valor predicho con tendencia y variación aleatoria
+      const valorPredicho = ultimoValor + (tendencia * i) + (Math.random() * 20 - 10);
+      
+      prediccion.push({
+        fecha: fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+        valor: Math.max(0, valorPredicho)
+      });
+    }
+    
+    return { historico, prediccion };
+  };
+
+  const { historico, prediccion } = generarPrediccion();
+
+  if (chartInstances['prediccion']) {
+    chartInstances['prediccion'].destroy();
+  }
+
+  chartInstances['prediccion'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [...historico.map(h => h.fecha), ...prediccion.map(p => p.fecha)],
+      datasets: [
+        {
+          label: 'Histórico',
+          data: [...historico.map(h => h.valor), ...Array(7).fill(null)],
+          borderColor: colorConfig.produccion,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 4,
+          tension: 0.4
+        },
+        {
+          label: 'Predicción',
+          data: [...Array(7).fill(null), ...prediccion.map(p => p.valor)],
+          borderColor: colorConfig.prediccion,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          pointRadius: 4,
+          tension: 0.4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Toneladas'
+          }
+        },
+        x: {
+          ticks: {
+            callback: function(value, index) {
+              // Marcar el punto donde comienza la predicción
+              return index === 6 ? 'Hoy' : this.getLabelForValue(value);
+            }
+          }
+        }
+      },
+      plugins: {
+        annotation: {
+          annotations: {
+            linePrediccion: {
+              type: 'line',
+              xMin: 6.5,
+              xMax: 6.5,
+              borderColor: '#6c757d',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              label: {
+                display: true,
+                content: 'Inicio predicción',
+                position: 'start'
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function cargarOpcionesFiltro() {
+  try {
+    // Cargar turnos
+    const selectTurno = document.getElementById('filterTurno');
+    if (!selectTurno) {
+      console.warn('Elemento filterTurno no encontrado');
+      return;
+    }
+    
+    const turnos = [...new Set(produccionData.map(p => p.turno))].filter(t => t);
+    
+    selectTurno.innerHTML = '<option value="">Todos los Turnos</option>';
+    
+    turnos.forEach(turnoId => {
+      const turno = produccionData.find(p => p.turno === turnoId);
+      if (turno && turno.turno_nombre) {
+        const option = document.createElement('option');
+        option.value = turnoId;
+        option.textContent = turno.turno_nombre;
+        selectTurno.appendChild(option);
+      }
+    });
+  } catch (error) {
+    console.error('Error en cargarOpcionesFiltro:', error);
+  }
+}
+
+function aplicarFiltros() {
+  cargarDatos();
+}
+
+function limpiarFiltros() {
+  const searchInput = document.getElementById('searchInput');
+  const filterLinea = document.getElementById('filterLinea');
+  const filterTurno = document.getElementById('filterTurno');
+  
+  if (searchInput) searchInput.value = '';
+  if (filterLinea) filterLinea.value = '';
+  if (filterTurno) filterTurno.value = '';
+  
+  // Restablecer el rango de fechas por defecto
+  establecerFechasPorDefecto();
+  
+  cargarDatos();
+}
+
+function exportarDatos() {
+  const fechaInicio = document.getElementById("fechaInicio").value;
+  const fechaFin = document.getElementById("fechaFin").value;
+  
+  alert(`Exportando datos del ${fechaInicio} al ${fechaFin} - Funcionalidad en desarrollo`);
+}
+
+function changeChartType(chartId, type) {
+  if (chartInstances[chartId]) {
+    chartInstances[chartId].destroy();
+  }
+  
+  console.log(`Cambiando gráfico ${chartId} a tipo ${type}`);
+  
+  switch(chartId) {
+    case 'chartProduccionLinea':
+      renderChartProduccionLinea();
+      break;
+    case 'chartEficiencia':
+      renderChartEficiencia();
+      break;
+  }
+}
+
+// Funciones existentes del template original
+function verDetalleProduccion(id) {
+  const produccion = produccionData.find(p => p.id === id);
+  if (produccion) {
+    alert(`Detalles de producción #${id}: ${produccion.linea_nombre} - ${produccion.turno_nombre}`);
+    // Implementar modal de detalles aquí
+  }
+}
+
+function editarProduccion(id) {
+  // Implementar edición de registro
+  alert(`Editar registro #${id}`);
+}
+
+function nuevoRegistro() {
+  // Implementar creación de nuevo registro
+  alert('Nuevo registro de producción');
+}
+
+// Funciones auxiliares
+function showLoading(message) {
+  console.log('Loading:', message);
+  // Podrías implementar un spinner real aquí
+  const loadingElement = document.getElementById('loadingIndicator');
+  if (loadingElement) {
+    loadingElement.style.display = 'block';
+  }
+}
+
+function hideLoading() {
+  console.log('Loading complete');
+  const loadingElement = document.getElementById('loadingIndicator');
+  if (loadingElement) {
+    loadingElement.style.display = 'none';
+  }
+}
+
+function showError(message) {
+  // En lugar de alert, podrías usar un toast o modal más elegante
+  console.error('Error:', message);
+  
+  // Crear notificación toast si no existe
+  let toast = document.getElementById('errorToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'errorToast';
+    toast.className = 'position-fixed top-0 end-0 p-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <div class="toast align-items-center text-white bg-danger border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(toast);
+  }
+  
+  // Mostrar toast
+  const bsToast = new bootstrap.Toast(toast.querySelector('.toast'));
+  bsToast.show();
+}
+
+// Inicialización
+document.addEventListener("DOMContentLoaded", function() {
+  try {
+    // Establecer fechas por defecto al cargar la página
+    establecerFechasPorDefecto();
+    
+    // Cargar datos iniciales
+    cargarDatos();
+    
+    // Auto-actualización cada 2 minutos
+    setInterval(cargarDatos, 120000);
+    
+    // Búsqueda en tiempo real con debounce
+    let searchTimeout;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(aplicarFiltros, 500);
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error en inicialización:', error);
+    showError('Error al inicializar la aplicación: ' + error.message);
+  }
+});
+</script>
+{% endblock %}

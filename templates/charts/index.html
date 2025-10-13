@@ -1,0 +1,276 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block title %}Charts{% endblock title %}
+
+{% block content %}
+    <!-- Filtros -->
+  <div class="container-fluid py-2">
+    <div class="card">
+      <div class="card-header">
+        <h5>Filtros</h5>
+      </div>
+      <div class="card-body">
+        <form id="filter-form" method="GET">
+          <div class="row">
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="linea">Línea de producción</label>
+                <select class="form-control" id="linea" name="linea">
+                  <option value="">Todas</option>
+                  {% for linea in lineas %}
+                    <option value="{{ linea.id }}" {% if filtros.linea == linea.id|stringformat:"i" %}selected{% endif %}>{{ linea.nombre }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="turno">Turno</label>
+                <select class="form-control" id="turno" name="turno">
+                  <option value="">Todos</option>
+                  {% for turno in turnos %}
+                    <option value="{{ turno.id }}" {% if filtros.turno == turno.id|stringformat:"i" %}selected{% endif %}>{{ turno.nombre }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="fecha">Fecha</label>
+                <input type="date" class="form-control" id="fecha" name="fecha" value="{{ filtros.fecha }}">
+              </div>
+            </div>
+            <div class="col-md-3 align-self-end">
+              <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+              <button type="button" id="reset-filters" class="btn btn-secondary">Limpiar</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <!-- Gráficos -->
+
+
+
+
+  <div class="container-fluid py-2">
+    <div class="row">
+      <!-- [ Bar Chart ] start -->
+      <div class="col-sm-12 col-md-6">
+        <div class="card">
+          <div class="card-header">
+            <h5>Bar Chart</h5>
+          </div>
+          <div class="card-body text-center">
+            <div id="bar-chart"></div>
+          </div>
+        </div>
+      </div>
+      <!-- [ Bar Chart ] end -->
+
+      <!-- [ Pie Chart ] start -->
+      <div class="col-sm-12 col-md-6">
+        <div class="card">
+          <div class="card-header">
+            <h5>Pie Chart</h5>
+          </div>
+          <div class="card-body text-center">
+            <div id="pie-chart"></div>
+          </div>
+        </div>
+      </div>
+      <!-- [ Pie Chart ] end -->
+    </div>
+  </div>
+  <div class="container-fluid py-2">
+    <div class="row g-3">
+      <!-- Producción por línea -->
+      <div class="col-md-6">
+        <div class="card shadow-sm">
+          <div class="card-header"><h5>Producción por línea</h5></div>
+          <div class="card-body"><div id="chart-produccion"></div></div>
+        </div>
+      </div>
+
+      <!-- Fallas por tipo -->
+      <div class="col-md-6">
+        <div class="card shadow-sm">
+          <div class="card-header"><h5>Fallas por tipo</h5></div>
+          <div class="card-body"><div id="chart-fallas-tipo"></div></div>
+        </div>
+      </div>
+
+      <!-- Fallas por gravedad -->
+      <div class="col-md-6">
+        <div class="card shadow-sm">
+          <div class="card-header"><h5>Fallas por gravedad</h5></div>
+          <div class="card-body"><div id="chart-fallas-gravedad"></div></div>
+        </div>
+      </div>
+
+      <!-- Próximos mantenimientos -->
+      <div class="col-md-6">
+        <div class="card shadow-sm">
+          <div class="card-header"><h5>Próximos mantenimientos</h5></div>
+          <div class="card-body"><div id="chart-mantenimientos"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+  // Variables globales para almacenar las instancias de los gráficos
+  var barChart, pieChart, produccionChart, fallasTipoChart, fallasGravedadChart, mantenimientosChart;
+
+  document.addEventListener("DOMContentLoaded", function() {
+    // Inicializar gráficos con datos del servidor
+    initializeCharts();
+    
+    // Configurar event listeners después de que los elementos estén disponibles
+    setTimeout(function() {
+      // Event listener para el botón de limpiar filtros
+      var resetButton = document.getElementById('reset-filters');
+      if (resetButton) {
+        resetButton.addEventListener('click', function() {
+          document.getElementById('linea').value = '';
+          document.getElementById('turno').value = '';
+          document.getElementById('fecha').value = '';
+          updateCharts();
+        });
+      }
+      
+      // Event listeners para cambios en los filtros
+      var filterInputs = ['linea', 'turno', 'fecha'];
+      filterInputs.forEach(function(inputId) {
+        var input = document.getElementById(inputId);
+        if (input) {
+          input.addEventListener('change', function() {
+            updateCharts();
+          });
+        }
+      });
+    }, 100);
+  });
+
+  function initializeCharts() {
+
+
+   
+
+
+
+    // === Fallas por tipo ===
+    var fallasTipo = JSON.parse('{{ fallas_tipo|escapejs }}');
+    fallasTipoChart = new ApexCharts(document.querySelector("#chart-fallas-tipo"), {
+      chart: { type: 'donut', height: 300 },
+      labels: fallasTipo.map(f => f.tipo),
+      series: fallasTipo.map(f => f.total)
+    });
+    fallasTipoChart.render();
+
+    // === Fallas por gravedad ===
+    var fallasGravedad = JSON.parse('{{ fallas_gravedad|escapejs }}');
+    fallasGravedadChart = new ApexCharts(document.querySelector("#chart-fallas-gravedad"), {
+      chart: { type: 'pie', height: 300 },
+      labels: fallasGravedad.map(f => f.gravedad),
+      series: fallasGravedad.map(f => f.total)
+    });
+    fallasGravedadChart.render();
+
+    // === Próximos mantenimientos ===
+    var mantenimientos = JSON.parse('{{ mantenimientos|escapejs }}');
+    mantenimientosChart = new ApexCharts(document.querySelector("#chart-mantenimientos"), {
+      chart: { type: 'rangeBar', height: 300 },
+      plotOptions: { bar: { horizontal: true } },
+      series: [{
+        data: mantenimientos.map(m => ({
+          x: m.codigo,
+          y: [new Date().getTime(), new Date(m.proximo_mantenimiento).getTime()]
+        }))
+      }],
+      xaxis: { type: 'datetime' }
+    });
+    mantenimientosChart.render();
+  }
+
+  function updateCharts() {
+    // Obtener valores de los filtros de manera segura
+    const lineaElement = document.getElementById('linea');
+    const turnoElement = document.getElementById('turno');
+    const fechaElement = document.getElementById('fecha');
+    
+    if (!lineaElement || !turnoElement || !fechaElement) {
+      console.error('Uno o más elementos de filtro no existen en el DOM');
+      return;
+    }
+    
+    const linea = lineaElement.value;
+    const turno = turnoElement.value;
+    const fecha = fechaElement.value;
+    
+    // Construir URL de la API con parámetros
+    let apiUrl = '/api/dashboard-data?';
+    if (linea) apiUrl += `linea=${linea}&`;
+    if (turno) apiUrl += `turno=${turno}&`;
+    if (fecha) apiUrl += `fecha=${fecha}`;
+    
+    // Realizar petición AJAX para obtener datos filtrados
+    fetch(apiUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Error en la respuesta de la API');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Actualizar gráfico de producción por línea
+        if (produccionChart && data.produccion) {
+          produccionChart.updateSeries([{
+            name: 'Total',
+            data: data.produccion.map(p => p.total || 0)
+          }]);
+          produccionChart.updateOptions({
+            xaxis: {
+              categories: data.produccion.map(p => p.name)
+            }
+          });
+        }
+
+        // Actualizar gráfico de fallas por tipo
+        if (fallasTipoChart && data.fallas_tipo) {
+          fallasTipoChart.updateSeries(data.fallas_tipo.map(f => f.total));
+          fallasTipoChart.updateOptions({
+            labels: data.fallas_tipo.map(f => f.tipo)
+          });
+        }
+
+        // Actualizar gráfico de fallas por gravedad
+        if (fallasGravedadChart && data.fallas_gravedad) {
+          fallasGravedadChart.updateSeries(data.fallas_gravedad.map(f => f.total));
+          fallasGravedadChart.updateOptions({
+            labels: data.fallas_gravedad.map(f => f.gravedad)
+          });
+        }
+
+        // Actualizar gráfico de mantenimientos
+        if (mantenimientosChart && data.mantenimientos) {
+          mantenimientosChart.updateSeries([{
+            data: data.mantenimientos.map(m => ({
+              x: m.codigo,
+              y: [new Date().getTime(), new Date(m.proximo_mantenimiento).getTime()]
+            }))
+          }]);
+        }
+      })
+      .catch(error => {
+        console.error('Error al obtener datos filtrados:', error);
+      });
+  }
+</script>
+
+{% endblock extra_js %}

@@ -1,0 +1,10 @@
+<!-- templates/admin/login.html -->
+{% extends "admin/base_site.html" %}
+{% block content %}
+  <h2>Login Admin Test</h2>
+  <form method="post">{% csrf_token %}
+    <p><label>Username: <input type="text" name="username"></label></p>
+    <p><label>Password: <input type="password" name="password"></label></p>
+    <input type="submit" value="Login">
+  </form>
+{% endblock %}

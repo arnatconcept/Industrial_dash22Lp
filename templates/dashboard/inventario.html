@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h1 class="mb-4">📦 Dashboard Inventario</h1>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background: #f5f6fa; }
+    .kpi-card { border-radius: 12px; padding: 20px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1);}
+    .nav-tabs .nav-link.active { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-dark px-3">
+    <span class="navbar-brand">Filtros</span>
+    
+    <!-- Campo de búsqueda y filtros -->
+    <form class="d-flex align-items-center me-3" id="searchFilterForm" onsubmit="return false;">
+      <input class="form-control form-control-sm me-2" type="search" placeholder="Buscar..." aria-label="Buscar" id="searchInput">
+      <select class="form-select form-select-sm me-2" id="filterTipo">
+        <option value="">Todos</option>
+        <option value="motor">Motores</option>
+        <option value="variador">Variadores</option>
+        <option value="reductor">Reductores</option>
+        <option value="cadena">Cadenas</option>
+        <option value="polea">Poleas</option>
+        <option value="cilindro_hidraulico">Cilindros Hidráulicos</option>
+      </select>
+      <button class="btn btn-sm btn-primary" type="button" onclick="aplicarBusqueda()">Buscar</button>
+    </form>
+    <script>
+      let motoresData = [];
+      let variadoresData = [];
+      let reductoresData = [];
+      let cadenasData = [];
+      let poleasData = [];
+      let cilindrosHidraulicosData = [];
+
+      function aplicarBusqueda() {
+        const texto = document.getElementById('searchInput').value.toLowerCase();
+        const tipo = document.getElementById('filterTipo').value;
+
+        function filtrarLista(listaId, data, tipoEspecifico) {
+          const lista = document.getElementById(listaId);
+          lista.innerHTML = '';
+          data.forEach(item => {
+            let match = false;
+
+            // Verificar si coincide con el texto de búsqueda
+            const textoMatch = !texto || 
+                              item.codigo.toLowerCase().includes(texto) ||
+                              (item.nombre && item.nombre.toLowerCase().includes(texto)) ||
+                              (item.marca && item.marca.toLowerCase().includes(texto)) ||
+                              (item.modelo && item.modelo.toLowerCase().includes(texto)) ||
+                              (item.estado && item.estado.toLowerCase().includes(texto));
+
+            // Verificar si coincide con el tipo seleccionado
+            const tipoMatch = !tipo || tipo === tipoEspecifico;
+
+            match = textoMatch && tipoMatch;
+
+            if(match){
+              const li = document.createElement('li');
+              li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+
+              // Generar contenido según el tipo de activo
+              let contenido = `<div><strong>${item.codigo}</strong>`;
+              
+              // Campos específicos por tipo de activo
+              if (tipoEspecifico === 'motor') {
+                contenido += ` - ${item.potencia || '-'} kW | ${item.tipo || '-'} | Estado: ${item.estado || '-'}`;
+              } else if (tipoEspecifico === 'variador') {
+                contenido += ` - ${item.marca || '-'} ${item.modelo || '-'} | ${item.potencia || '-'} kW | Estado: ${item.estado || '-'}`;
+              } else if (tipoEspecifico === 'reductor') {
+                contenido += ` - ${item.ratio || '-'} | ${item.tipo || '-'} | Estado: ${item.estado || '-'}`;
+              } else if (tipoEspecifico === 'cadena') {
+                contenido += ` - ${item.tipo || '-'} | ${item.longitud || '-'} | Estado: ${item.estado || '-'}`;
+              } else if (tipoEspecifico === 'polea') {
+                contenido += ` - ${item.diametro || '-'} | ${item.material || '-'} | Estado: ${item.estado || '-'}`;
+              } else if (tipoEspecifico === 'cilindro_hidraulico') {
+                contenido += ` - ${item.diametro || '-'} | ${item.carrera || '-'} | Estado: ${item.estado || '-'}`;
+              }
+              
+              contenido += `<br>Próximo mantenimiento: ${item.proximo_mantenimiento || '-'}</div>`;
+              
+              // Botones e imágenes
+              let botones = '<div>';
+              if (item.imagen_url) {
+                botones += `<img src="${item.imagen_url}" alt="img" width="50" class="me-2">`;
+              }
+              if (item.plano_url) {
+                botones += `<a href="${item.plano_url}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Plano</a>`;
+              }
+              if (item.manual) {
+                botones += `<a href="${item.manual}" target="_blank" class="btn btn-sm btn-outline-secondary">Manual</a>`;
+              }
+              botones += '</div>';
+              
+              li.innerHTML = contenido + botones;
+              lista.appendChild(li);
+            }
+          });
+        }
+
+        filtrarLista('listaMotores', motoresData, 'motor');
+        filtrarLista('listaVariadores', variadoresData, 'variador');
+        filtrarLista('listaReductores', reductoresData, 'reductor');
+        filtrarLista('listaCadenas', cadenasData, 'cadena');
+        filtrarLista('listaPoleas', poleasData, 'polea');
+        filtrarLista('listaCilindrosHidraulicos', cilindrosHidraulicosData, 'cilindro_hidraulico');
+      }
+
+      document.getElementById('searchInput').addEventListener('input', aplicarBusqueda);
+      document.getElementById('filterTipo').addEventListener('change', aplicarBusqueda);
+    </script>
+  </nav>
+
+  <div class="container my-4">
+    <!-- KPIs -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-2">
+        <div class="kpi-card text-center">
+          <h5>Total Motores</h5>
+          <h3 id="kpi-motores">-</h3>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="kpi-card text-center">
+          <h5>Total Variadores</h5>
+          <h3 id="kpi-variadores">-</h3>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="kpi-card text-center">
+          <h5>Total Reductores</h5>
+          <h3 id="kpi-reductores">-</h3>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="kpi-card text-center">
+          <h5>Total Cadenas</h5>
+          <h3 id="kpi-cadenas">-</h3>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="kpi-card text-center">
+          <h5>Total Poleas</h5>
+          <h3 id="kpi-poleas">-</h3>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="kpi-card text-center">
+          <h5>Total Cilindros</h5>
+          <h3 id="kpi-cilindrosHidraulicos">-</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pestañas para organizar los diferentes tipos de activos -->
+    <ul class="nav nav-tabs" id="inventarioTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="electricos-tab" data-bs-toggle="tab" data-bs-target="#electricos" type="button" role="tab">Activos Eléctricos</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="mecanicos-tab" data-bs-toggle="tab" data-bs-target="#mecanicos" type="button" role="tab">Activos Mecánicos</button>
+      </li>
+    </ul>
+
+    <!-- Contenido de las pestañas -->
+    <div class="tab-content" id="inventarioTabsContent">
+      <!-- Pestaña de activos eléctricos -->
+      <div class="tab-pane fade show active" id="electricos" role="tabpanel">
+        <div class="row g-3 my-4">
+          <div class="col-md-6">
+            <div class="kpi-card">
+              <h6>Lista de Motores</h6>
+              <ul class="list-group" id="listaMotores"></ul>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="kpi-card">
+              <h6>Lista de Variadores</h6>
+              <ul class="list-group" id="listaVariadores"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pestaña de activos mecánicos -->
+      <div class="tab-pane fade" id="mecanicos" role="tabpanel">
+        <div class="row g-3 my-4">
+          <div class="col-md-6">
+            <div class="kpi-card">
+              <h6>Lista de Reductores</h6>
+              <ul class="list-group" id="listaReductores"></ul>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="kpi-card">
+              <h6>Lista de Cadenas</h6>
+              <ul class="list-group" id="listaCadenas"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="row g-3 my-4">
+          <div class="col-md-6">
+            <div class="kpi-card">
+              <h6>Lista de Poleas</h6>
+              <ul class="list-group" id="listaPoleas"></ul>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="kpi-card">
+              <h6>Lista de Cilindros Hidráulicos</h6>
+              <ul class="list-group" id="listaCilindrosHidraulicos"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráficas -->
+    <div class="row g-3 my-4">
+      <div class="col-md-12">
+        <div class="kpi-card">
+          <h6>Distribución de Inventario</h6>
+          <canvas id="chartInventario"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "/api";  // ajusta si usas prefijo
+    let token = localStorage.getItem("access_token");
+
+    function logout(){
+      localStorage.clear();
+      window.location.href = "/login.html";
+    }
+
+    async function fetchAPI(endpoint) {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if(response.status === 401){ logout(); }
+      return response.json();
+    }
+
+    // Función genérica para cargar activos
+    async function loadActivos(endpoint, listaId, kpiId, tipo) {
+      const data = await fetchAPI(endpoint);
+      // Guardar datos globalmente para filtros
+      if (tipo === 'motor') motoresData = data;
+      else if (tipo === 'variador') variadoresData = data;
+      else if (tipo === 'reductor') reductoresData = data;
+      else if (tipo === 'cadena') cadenasData = data;
+      else if (tipo === 'polea') poleasData = data;
+      else if (tipo === 'cilindro_hidraulico') cilindrosHidraulicosData = data;
+      
+      document.getElementById(kpiId).textContent = data.length || 0;
+      const lista = document.getElementById(listaId);
+      lista.innerHTML = "";
+      
+      data.forEach(item => {
+        let contenido = `<li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>${item.codigo}</strong>`;
+        
+        // Campos específicos por tipo de activo
+        if (tipo === 'motor') {
+          contenido += ` - ${item.potencia} kW | ${item.tipo} | Estado: ${item.estado || '-'}`;
+        } else if (tipo === 'variador') {
+          contenido += ` - ${item.marca} ${item.modelo} | ${item.potencia} kW | Estado: ${item.estado || '-'}`;
+        } else if (tipo === 'reductor') {
+          contenido += ` - ${item.ratio || '-'} | ${item.tipo || '-'} | Estado: ${item.estado || '-'}`;
+        } else if (tipo === 'cadena') {
+          contenido += ` - ${item.tipo || '-'} | ${item.longitud || '-'} | Estado: ${item.estado || '-'}`;
+        } else if (tipo === 'polea') {
+          contenido += ` - ${item.diametro || '-'} | ${item.material || '-'} | Estado: ${item.estado || '-'}`;
+        } else if (tipo === 'cilindro_hidraulico') {
+          contenido += ` - ${item.diametro || '-'} | ${item.carrera || '-'} | Estado: ${item.estado || '-'}`;
+        }
+        
+        contenido += `<br>Próximo mantenimiento: ${item.proximo_mantenimiento || '-'}
+          </div>
+          <div>`;
+        
+        if (item.imagen_url) {
+          contenido += `<img src="${item.imagen_url}" alt="img" width="50" class="me-2">`;
+        }
+        
+        if (item.plano_url) {
+          contenido += `<a href="${item.plano_url}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Plano</a>`;
+        }
+        
+        if (item.manual) {
+          contenido += `<a href="${item.manual}" target="_blank" class="btn btn-sm btn-outline-secondary">Manual</a>`;
+        }
+        
+        contenido += `</div></li>`;
+        lista.innerHTML += contenido;
+      });
+      
+      return data.length;
+    }
+
+    async function loadInventarioChart() {
+      const motores = await fetchAPI("/motores/");
+      const variadores = await fetchAPI("/variadores/");
+      const reductores = await fetchAPI("/reductores/");
+      const cadenas = await fetchAPI("/cadenas/");
+      const poleas = await fetchAPI("/poleas/");
+      const cilindrosHidraulicos = await fetchAPI("/cilindros-hidraulicos/");
+      
+      const labels = ["Motores", "Variadores", "Reductores", "Cadenas", "Poleas", "Cilindros Hidráulicos"];
+      const valores = [
+        motores.length, 
+        variadores.length, 
+        reductores.length, 
+        cadenas.length, 
+        poleas.length, 
+        cilindrosHidraulicos.length
+      ];
+
+      new Chart(document.getElementById("chartInventario"), {
+        type: "pie",
+        data: { 
+          labels, 
+          datasets: [{ 
+            label: "Cantidad", 
+            data: valores,
+            backgroundColor: [
+              '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+            ]
+          }] 
+        },
+        options: { responsive: true }
+      });
+    }
+
+    async function init() {
+      await loadActivos("/motores/", "listaMotores", "kpi-motores", "motor");
+      await loadActivos("/variadores/", "listaVariadores", "kpi-variadores", "variador");
+      await loadActivos("/reductores/", "listaReductores", "kpi-reductores", "reductor");
+      await loadActivos("/cadenas/", "listaCadenas", "kpi-cadenas", "cadena");
+      await loadActivos("/poleas/", "listaPoleas", "kpi-poleas", "polea");
+      await loadActivos("/cilindros-hidraulicos/", "listaCilindrosHidraulicos", "kpi-cilindrosHidraulicos", "cilindro_hidraulico");
+      await loadInventarioChart();
+    }
+
+    init();
+    setInterval(init, 60000); // refrescar cada 60s
+  </script>
+</body>
+</html>
+{% endblock %}

@@ -1,34 +1,43 @@
 from rest_framework import serializers
+from .models import ReunionDiaria, IncidenciaReunion, PlanificacionReunion, AccionReunion
 from .models import *
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
-
+class TurnoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Turno
+        fields = '__all__'
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+
         # Agregar claims personalizados
-        token['role'] = user.role
         token['username'] = user.username
+        token['role'] = user.role
         token['email'] = user.email
+
         return token
 
     def validate(self, attrs):
         data = super().validate(attrs)
+        
         # Agregar datos adicionales a la respuesta
-        data.update({
-            'user': {
-                'id': self.user.id,
-                'username': self.user.username,
-                'role': self.user.role,
-                'email': self.user.email,
-                'first_name': self.user.first_name,
-                'last_name': self.user.last_name
-            }
-        })
+        data['user'] = {
+            'id': self.user.id,
+            'username': self.user.username,
+            'email': self.user.email,
+            'role': self.user.role,
+        }
         return data
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -720,3 +729,157 @@ class DispositivoRequestSerializer(serializers.Serializer):
         if value not in ['android', 'ios']:
             raise serializers.ValidationError("Plataforma debe ser 'android' o 'ios'")
         return value
+
+
+class ReunionDiariaSerializer(serializers.ModelSerializer):
+    creada_por_nombre = serializers.CharField(source='creada_por.get_full_name', read_only=True)
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+    incidencias_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ReunionDiaria
+        fields = '__all__'
+        read_only_fields = ('creada_por', 'creada_en')
+    
+    def get_incidencias_count(self, obj):
+        return obj.incidencias.count()
+
+
+class IncidenciaReunionSerializer(serializers.ModelSerializer):
+    reunion_fecha = serializers.DateField(source='reunion.fecha', read_only=True)
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    prioridad_display = serializers.CharField(source='get_prioridad_display', read_only=True)
+    reportada_por_nombre = serializers.CharField(source='reportada_por.get_full_name', read_only=True)
+    equipo_nombre = serializers.CharField(source='equipo_relacionado.nombre', read_only=True)
+    orden_mantenimiento_titulo = serializers.CharField(source='orden_mantenimiento.titulo', read_only=True)
+    acciones_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = IncidenciaReunion
+        fields = '__all__'
+        read_only_fields = ('reportada_por', 'creada_en')
+    
+    def get_acciones_count(self, obj):
+        return obj.acciones.count()
+
+
+class PlanificacionReunionSerializer(serializers.ModelSerializer):
+    reunion_fecha = serializers.DateField(source='reunion.fecha', read_only=True)
+    responsable_nombre = serializers.CharField(source='responsable.get_full_name', read_only=True)
+    equipo_nombre = serializers.CharField(source='equipo_relacionado.nombre', read_only=True)
+    orden_mantenimiento_titulo = serializers.CharField(source='orden_mantenimiento.titulo', read_only=True)
+    
+    class Meta:
+        model = PlanificacionReunion
+        fields = '__all__'
+        read_only_fields = ('creada_en',)
+
+
+class AccionReunionSerializer(serializers.ModelSerializer):
+    incidencia_descripcion = serializers.CharField(source='incidencia.descripcion', read_only=True)
+    asignada_a_nombre = serializers.CharField(source='asignada_a.get_full_name', read_only=True)
+    orden_mantenimiento_titulo = serializers.CharField(source='orden_mantenimiento.titulo', read_only=True)
+    
+    class Meta:
+        model = AccionReunion
+        fields = '__all__'
+        read_only_fields = ('creada_en',)
+
+
+# For nested representations
+class IncidenciaReunionNestedSerializer(serializers.ModelSerializer):
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    prioridad_display = serializers.CharField(source='get_prioridad_display', read_only=True)
+    reportada_por_nombre = serializers.CharField(source='reportada_por.get_full_name', read_only=True)
+    equipo_nombre = serializers.CharField(source='equipo_relacionado.nombre', read_only=True)
+    acciones = AccionReunionSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = IncidenciaReunion
+        exclude = ('reunion',)
+
+
+class ReunionDiariaDetailSerializer(ReunionDiariaSerializer):
+    incidencias = IncidenciaReunionNestedSerializer(many=True, read_only=True)
+    planificaciones = PlanificacionReunionSerializer(many=True, read_only=True)
+
+
+class ProduccionTurnoSerializer(serializers.ModelSerializer):
+    turno_nombre = serializers.CharField(source='turno.nombre', read_only=True)
+    linea_nombre = serializers.CharField(source='linea.nombre', read_only=True)
+    
+    class Meta:
+        model = ProduccionTurno
+        fields = '__all__'
+        read_only_fields = ('creado_por', 'fecha_creacion', 'fecha_actualizacion', 'eficiencia')
+
+class FallaTurnoSerializer(serializers.ModelSerializer):
+    turno_nombre = serializers.CharField(source='turno.nombre', read_only=True)
+    linea_nombre = serializers.CharField(source='linea.nombre', read_only=True)
+    equipo_nombre = serializers.CharField(source='equipo.nombre', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = FallaTurno
+        fields = '__all__'
+        read_only_fields = ('creado_por', 'fecha_creacion', 'fecha_actualizacion')
+
+class ParadaTurnoSerializer(serializers.ModelSerializer):
+    turno_nombre = serializers.CharField(source='turno.nombre', read_only=True)
+    linea_nombre = serializers.CharField(source='linea.nombre', read_only=True)
+    equipo_nombre = serializers.CharField(source='equipo.nombre', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ParadaTurno
+        fields = '__all__'
+        read_only_fields = ('creado_por', 'fecha_creacion', 'fecha_actualizacion')
+
+class NodeRedLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NodeRedLog
+        fields = '__all__'
+        read_only_fields = ('fecha_recepcion',)
+
+class ProduccionSerializer(serializers.ModelSerializer):
+    linea_nombre = serializers.CharField(source='linea.nombre', read_only=True)
+    turno_nombre = serializers.CharField(source='turno.nombre', read_only=True)
+    supervisor_username = serializers.CharField(source='supervisor.username', read_only=True)
+
+    class Meta:
+        model = Produccion
+        fields = [
+            'id', 'fecha', 'turno', 'turno_nombre', 'linea', 'linea_nombre', 
+            'supervisor', 'supervisor_username', 'producto', 'bandejas',
+            'fabricacion_toneladas', 'fabricacion_scrap', 'apilado_vagones',
+            'apilado_toneladas', 'coccion_vagones', 'coccion_toneladas',
+            'desapilado_primera', 'desapilado_segunda', 'desapilado_toneladas',
+            'meta_produccion', 'eficiencia', 'fecha_creacion', 'fuente_dato'
+        ]
+class NodeRedProduccionSerializer(serializers.Serializer):
+    fecha = serializers.DateField()
+    turno_id = serializers.IntegerField()
+    linea_id = serializers.IntegerField()
+    cantidad = serializers.IntegerField(min_value=0)
+    unidad = serializers.CharField(required=False, default="unidades")
+    meta_produccion = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+
+class NodeRedFallaSerializer(serializers.Serializer):
+    fecha = serializers.DateField()
+    turno_id = serializers.IntegerField()
+    linea_id = serializers.IntegerField()
+    equipo_id = serializers.IntegerField(required=False, allow_null=True)
+    tipo = serializers.CharField()
+    gravedad = serializers.CharField(required=False, default="moderada")
+    cantidad = serializers.IntegerField(min_value=0)
+    duracion_minutos = serializers.IntegerField(min_value=0, default=0)
+    descripcion = serializers.CharField(required=False, allow_blank=True)
+    accion_correctiva = serializers.CharField(required=False, allow_blank=True, default="")
+
+class NodeRedParadaSerializer(serializers.Serializer):
+    fecha = serializers.DateField()
+    turno_id = serializers.IntegerField()
+    linea_id = serializers.IntegerField()
+    equipo_id = serializers.IntegerField(required=False, allow_null=True)
+    motivo = serializers.CharField()
+    tipo = serializers.CharField(required=False, default="no_programada")
+    duracion_minutos = serializers.IntegerField(min_value=0)
+    descripcion = serializers.CharField(required=False, allow_blank=True)

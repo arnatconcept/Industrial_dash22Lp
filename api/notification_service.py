@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 
 class NotificationService:
     def __init__(self):
-        self.push_service = FCMNotification(api_key=settings.FCM_SERVER_KEY)
+        # self.push_service = FCMNotification(api_key=settings.FCM_SERVER_KEY)
+        self.push_service = FCMNotification(settings.FCM_SERVER_KEY)
+
     
     def _crear_notificacion_db(self, usuario_id, titulo, mensaje, tipo, prioridad, data_adicional=None, relacion_id=None, relacion_tipo=None):
         """Crea registro en base de datos antes de enviar push"""

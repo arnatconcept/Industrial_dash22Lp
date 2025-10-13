@@ -6,6 +6,14 @@ from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.db.models.functions import Abs
 
+# Agregar después del modelo Turno (si no existe)
+class Turno(models.Model):
+    nombre = models.CharField(max_length=50, unique=True)
+    hora_inicio = models.TimeField()
+    hora_fin = models.TimeField()
+    
+    def __str__(self):
+        return self.nombre
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -15,11 +23,28 @@ class User(AbstractUser):
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='tecnico')
     
+    # ⚠️ ELIMINA o CORRIGE este método save():
     def save(self, *args, **kwargs):
-        # Si es un nuevo usuario o se está cambiando la contraseña
-        if not self.pk or 'password' in kwargs.get('update_fields', []):
-            self.password = make_password(self.password)
+        if self.password and not self.password.startswith('pbkdf2_sha256$'):
+            self.set_password(self.password)
         super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return self.username
+
+#class User(AbstractUser):
+#    ROLE_CHOICES = [
+#        ('admin', 'Administrador'),
+#        ('supervisor', 'Supervisor'),
+#        ('tecnico', 'Técnico'),
+#    ]
+#    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='tecnico')
+    
+#    def save(self, *args, **kwargs):
+        # Si es un nuevo usuario o se está cambiando la contraseña
+#        if not self.pk or 'password' in kwargs.get('update_fields', []):
+#            self.password = make_password(self.password)
+#        super().save(*args, **kwargs)
 
 class LineaProduccion(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
@@ -236,6 +261,91 @@ class Variador(EquipoBase, UbicacionBase):
         else:
             self.proximo_mantenimiento = None
 
+class ReunionDiaria(models.Model):
+    ESTADO_CHOICES = [
+        ("programada", "Programada"),
+        ("realizada", "Realizada"),
+        ("anulada", "Anulada"),
+    ]
+
+    fecha = models.DateField(unique=True)
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default="programada")
+    motivo_anulacion = models.TextField(blank=True, null=True)
+    notas = models.TextField(blank=True, null=True)
+    creada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="reuniones_creadas"
+    )
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+class IncidenciaReunion(models.Model):
+    TIPO_CHOICES = [
+        ("observacion", "Observación"),
+        ("falla", "Falla"),
+        ("urgente", "Urgente"),
+    ]
+
+    reunion = models.ForeignKey(ReunionDiaria, on_delete=models.CASCADE, related_name="incidencias")
+    descripcion = models.TextField()
+    prioridad = models.CharField(max_length=10, choices=[
+        ("baja", "Baja"),
+        ("media", "Media"),
+        ("alta", "Alta"),
+        ("critica", "Crítica"),
+    ], default="media")
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default="observacion")
+    equipo_relacionado = models.ForeignKey(
+        Equipo, on_delete=models.SET_NULL, null=True, blank=True, related_name="incidencias"
+    )
+    orden_mantenimiento = models.OneToOneField(
+        "OrdenMantenimiento", on_delete=models.SET_NULL, null=True, blank=True, related_name="incidencia_origen"
+    )
+    reportada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="incidencias_reportadas"
+    )
+    resuelta = models.BooleanField(default=False)
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+class PlanificacionReunion(models.Model):
+    reunion = models.ForeignKey(ReunionDiaria, on_delete=models.CASCADE, related_name="planificaciones")
+    descripcion = models.TextField()
+    fecha_programada = models.DateField()
+    responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="planificaciones_reunion"
+    )
+    equipo_relacionado = models.ForeignKey(
+        Equipo, on_delete=models.SET_NULL, null=True, blank=True, related_name="planificaciones"
+    )
+    orden_mantenimiento = models.OneToOneField(
+        "OrdenMantenimiento", on_delete=models.SET_NULL, null=True, blank=True, related_name="planificacion_origen"
+    )
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+class AccionReunion(models.Model):
+    incidencia = models.ForeignKey(IncidenciaReunion, on_delete=models.CASCADE, related_name="acciones")
+    descripcion = models.TextField()
+    fecha_limite = models.DateField(blank=True, null=True)
+    completada = models.BooleanField(default=False)
+    asignada_a = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="acciones_asignadas"
+    )
+    orden_mantenimiento = models.ForeignKey(
+        "OrdenMantenimiento", on_delete=models.SET_NULL, null=True, blank=True, related_name="acciones_reunion"
+    )
+    creada_en = models.DateTimeField(auto_now_add=True)
             
 class OrdenMantenimiento(models.Model):
     TIPO_MANTENIMIENTO = [
@@ -616,3 +726,183 @@ class DispositivoApp(models.Model):
     
     def __str__(self):
         return f"{self.usuario_nombre} - {self.plataforma}"
+
+# Modelos para datos de Node-RED
+class Produccion(models.Model):
+    fecha = models.DateField()
+    turno = models.ForeignKey(Turno, on_delete=models.CASCADE)
+    linea = models.ForeignKey(LineaProduccion, on_delete=models.CASCADE)
+    supervisor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    producto = models.CharField(max_length=100, blank=True)
+    bandejas = models.PositiveIntegerField(null=True, blank=True)
+    fabricacion_toneladas = models.FloatField(null=True, blank=True)
+    fabricacion_scrap = models.FloatField(null=True, blank=True)
+    apilado_vagones = models.PositiveIntegerField(null=True, blank=True)
+    apilado_toneladas = models.FloatField(null=True, blank=True)
+    coccion_vagones = models.PositiveIntegerField(null=True, blank=True)
+    coccion_toneladas = models.FloatField(null=True, blank=True)
+    desapilado_primera = models.PositiveIntegerField(null=True, blank=True)
+    desapilado_segunda = models.PositiveIntegerField(null=True, blank=True)
+    desapilado_toneladas = models.FloatField(null=True, blank=True)
+    meta_produccion = models.PositiveIntegerField(null=True, blank=True)
+    eficiencia = models.FloatField(null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fuente_dato = models.CharField(max_length=20, default="node_red")  
+
+    class Meta:
+        unique_together = ['fecha', 'turno', 'linea']
+        verbose_name_plural = "Producción por turnos"
+        indexes = [
+            models.Index(fields=['fecha', 'linea']),
+        ]
+
+    def __str__(self):
+        return f"Prod {self.linea} - {self.fecha} - {self.turno}"
+
+    def save(self, *args, **kwargs):
+        # Calcular automáticamente la eficiencia si hay meta definida
+        if self.meta_produccion and self.meta_produccion > 0:
+            self.eficiencia = (self.fabricacion_toneladas / self.meta_produccion) * 100
+        super().save(*args, **kwargs)
+
+class ProduccionTurno(models.Model):
+    fecha = models.DateField()
+    turno = models.ForeignKey(Turno, on_delete=models.CASCADE)
+    linea = models.ForeignKey(LineaProduccion, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField()
+    unidad = models.CharField(max_length=20, default="unidades")
+    meta_produccion = models.PositiveIntegerField(null=True, blank=True)
+    eficiencia = models.FloatField(null=True, blank=True)
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    fuente_dato = models.CharField(max_length=20, default="node_red")  
+
+    class Meta:
+        unique_together = ['fecha', 'turno', 'linea']
+        verbose_name_plural = "Producción por turnos"
+        indexes = [
+            models.Index(fields=['fecha', 'linea']),
+        ]
+
+    def __str__(self):
+        return f"Prod {self.linea} - {self.fecha} - {self.turno}"
+
+    def save(self, *args, **kwargs):
+        # Calcular automáticamente la eficiencia si hay meta definida
+        if self.meta_produccion and self.meta_produccion > 0:
+            self.eficiencia = (self.cantidad / self.meta_produccion) * 100
+        super().save(*args, **kwargs)
+
+
+class FallaTurno(models.Model):
+    TIPO_FALLA_CHOICES = [
+        ('electrica', 'Eléctrica'),
+        ('mecanica', 'Mecánica'),
+        ('instrumentacion', 'Instrumentación'),
+        ('proceso', 'Proceso'),
+        ('calidad', 'Calidad'),
+        ('operativa', 'Operativa'),
+    ]
+    
+    GRAVEDAD_CHOICES = [
+        ('leve', 'Leve'),
+        ('moderada', 'Moderada'),
+        ('grave', 'Grave'),
+        ('critica', 'Crítica'),
+    ]
+    
+    fecha = models.DateField()
+    turno = models.ForeignKey(Turno, on_delete=models.CASCADE)
+    linea = models.ForeignKey(LineaProduccion, on_delete=models.CASCADE)
+    equipo = models.ForeignKey(Equipo, on_delete=models.CASCADE, null=True, blank=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_FALLA_CHOICES)
+    gravedad = models.CharField(max_length=20, choices=GRAVEDAD_CHOICES, default='moderada')
+    cantidad = models.PositiveIntegerField()
+    duracion_minutos = models.PositiveIntegerField(default=0)
+    descripcion = models.TextField(blank=True)
+    accion_correctiva = models.TextField(blank=True)
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    fuente_dato = models.CharField(max_length=20, default="node_red")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['fecha', 'linea']),
+            models.Index(fields=['equipo', 'fecha']),
+        ]
+
+    def __str__(self):
+        return f"Falla {self.linea} - {self.fecha} - {self.tipo}"
+
+
+class ParadaTurno(models.Model):
+    MOTIVO_PARADA_CHOICES = [
+        ('mantenimiento', 'Mantenimiento'),
+        ('limpieza', 'Limpieza'),
+        ('cambio_linea', 'Cambio de Línea'),
+        ('falta_material', 'Falta de Material'),
+        ('falla_equipo', 'Falla de Equipo'),
+        ('programacion', 'Cambio de Programación'),
+        ('calidad', 'Problema de Calidad'),
+        ('personal', 'Falta de Personal'),
+    ]
+    
+    TIPO_PARADA_CHOICES = [
+        ('programada', 'Programada'),
+        ('no_programada', 'No Programada'),
+    ]
+    
+    fecha = models.DateField()
+    turno = models.ForeignKey(Turno, on_delete=models.CASCADE)
+    linea = models.ForeignKey(LineaProduccion, on_delete=models.CASCADE)
+    equipo = models.ForeignKey(Equipo, on_delete=models.CASCADE, null=True, blank=True)
+    motivo = models.CharField(max_length=20, choices=MOTIVO_PARADA_CHOICES)
+    tipo = models.CharField(max_length=20, choices=TIPO_PARADA_CHOICES, default='no_programada')
+    duracion_minutos = models.PositiveIntegerField()
+    descripcion = models.TextField(blank=True)
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    fuente_dato = models.CharField(max_length=20, default="node_red")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['fecha', 'linea']),
+            models.Index(fields=['equipo', 'fecha']),
+        ]
+
+    def __str__(self):
+        return f"Parada {self.linea} - {self.fecha} - {self.motivo}"
+
+
+# Modelo para registro de recepción de datos desde Node-RED
+class NodeRedLog(models.Model):
+    TIPO_DATO_CHOICES = [
+        ('produccion', 'Producción'),
+        ('falla', 'Falla'),
+        ('parada', 'Parada'),
+    ]
+    
+    ESTADO_CHOICES = [
+        ('exito', 'Éxito'),
+        ('error', 'Error'),
+        ('advertencia', 'Advertencia'),
+    ]
+    
+    tipo_dato = models.CharField(max_length=20, choices=TIPO_DATO_CHOICES)
+    fecha_recepcion = models.DateTimeField(auto_now_add=True)
+    payload = models.JSONField()  # Datos recibidos en crudo
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES)
+    mensaje = models.TextField(blank=True)
+    registros_afectados = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-fecha_recepcion']
+        indexes = [
+            models.Index(fields=['fecha_recepcion', 'tipo_dato']),
+        ]
+
+    def __str__(self):
+        return f"Log {self.tipo_dato} - {self.fecha_recepcion}"

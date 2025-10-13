@@ -1,0 +1,485 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Gestión{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-bg: #f8f9fa;
+            --dark-bg: #34495e;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        body {
+            background-color: #f5f7f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+        }
+        
+        /* Login Page Styles */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-bg) 100%);
+        }
+        
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .login-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .login-body {
+            padding: 2rem;
+        }
+        
+        .form-control:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        /* Dashboard Styles */
+        .navbar {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+            border-bottom: 1px solid #465c7a;
+        }
+
+        .navbar-brand {
+            font-size: 1.1rem;
+        }
+
+        .nav-link {
+            transition: all 0.3s ease;
+            border-radius: 4px;
+            margin: 0 2px;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .sidebar {
+            background-color: var(--dark-bg);
+            color: white;
+            height: calc(100vh - 56px);
+            position: sticky;
+            top: 75px;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.8rem 1rem;
+            transition: var(--transition);
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            width: 24px;
+            text-align: center;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .kpi-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .kpi-trend {
+            font-size: 0.9rem;
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+            margin-top: 0.5rem;
+        }
+        
+        .trend-up {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #27ae60;
+        }
+        
+        .trend-down {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem;
+        }
+        
+        .filter-bar {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+        }
+        
+        .status-badge {
+            padding: 0.35rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            color: #6c757d;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+        
+        .recent-item {
+            border-left: 3px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .recent-item:hover {
+            background-color: #f8f9fa;
+            border-left-color: var(--secondary-color);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                height: auto;
+                position: relative;
+                top: 0;
+            }
+        }
+        /* Sidebar colapsable */
+       
+        .sidebar {
+            width: 220px;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            overflow: hidden;
+        }
+
+        .main-content {
+            transition: all 0.3s ease;
+            margin-left: 220px;
+        }
+
+        .main-content.full {
+            margin-left: 0;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: relative;
+                height: auto;
+                top: 0;
+                margin-bottom: 1rem;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow">
+        <div class="container-fluid">
+            <!-- Logo y Nombre -->
+            <a class="navbar-brand d-flex align-items-center fw-bold" href="#">
+                <i class="fas fa-industry me-2 fs-4 text-warning"></i>
+                <span class="d-none d-sm-inline">Sistema de Gestión Industrial</span>
+                <span class="d-inline d-sm-none">SGI</span>
+            </a>
+
+            <!-- Botón toggle para móviles -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Botón para toggle del sidebar -->
+            <button class="btn btn-outline-light btn-sm ms-2 d-lg-none" id="toggle-sidebar" title="Mostrar/ocultar menú">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <!-- Navegación principal -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Navegación rápida - Solo en desktop -->
+                <ul class="navbar-nav me-auto d-none d-lg-flex">
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'produccion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'produccion_dashboard' %}">
+                            <i class="fas fa-cogs me-1"></i> Producción
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'mantenimiento' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'mantenimiento_dashboard' %}">
+                            <i class="fas fa-tools me-1"></i> Mantenimiento
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'ordenes' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'ordenes_dashboard' %}">
+                            <i class="fas fa-clipboard-list me-1"></i> Órdenes
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Información del sistema -->
+                <div class="navbar-text d-none d-md-block me-3">
+                    <small class="text-light">
+                        <i class="fas fa-circle text-success me-1"></i>
+                        <span id="system-status">En línea</span>
+                    </small>
+                </div>
+
+                <!-- Usuario y dropdown -->
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <div class="user-avatar me-2">
+                                <i class="fas fa-user-circle fa-lg text-light"></i>
+                            </div>
+                            <div class="user-info d-none d-md-block">
+                                <div class="fw-semibold small">{{ user.username }}</div>
+                                <div class="x-small text-light opacity-75">{{ user.get_full_name|default:"Usuario" }}</div>
+                            </div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                            <li class="dropdown-header">
+                                <div class="fw-bold">{{ user.username }}</div>
+                                <small class="text-muted">{{ user.email|default:"No especificado" }}</small>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-user me-2 text-primary"></i>Mi Perfil
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-cog me-2 text-secondary"></i>Configuración
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-bell me-2 text-warning"></i>Notificaciones
+                                    <span class="badge bg-danger ms-2">3</span>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{% url 'logout' %}" id="logout-btn">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-lg-2 col-md-3 p-0">
+                <div class="sidebar">
+                    <ul class="nav flex-column">
+                        <!-- Dashboard Principal -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}" href="#">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        
+                        <!-- Producción -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'produccion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'produccion_dashboard' %}">
+                                <i class="fas fa-cogs"></i> Producción
+                            </a>
+                        </li>
+                        
+                        <!-- Mantenimiento -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'mantenimiento' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'mantenimiento_dashboard' %}">
+                                <i class="fas fa-tools"></i> Mantenimiento
+                            </a>
+                        </li>
+                        
+                        <!-- Órdenes de Trabajo -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'ordenes' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'ordenes_dashboard' %}">
+                                <i class="fas fa-clipboard-list"></i> Órdenes de Trabajo
+                            </a>
+                        </li>
+                        
+                        <!-- Fallas por Turno -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'fallas' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'dashboard_fallas' %}">
+                                <i class="fas fa-exclamation-triangle"></i> Fallas por Turno
+                            </a>
+                        </li>
+                        
+                        <!-- Separador para secciones adicionales -->
+                        <li class="nav-item mt-3">
+                            <small class="text-muted px-3">ANÁLISIS</small>
+                        </li>
+                        
+                        <!-- Reportes -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-chart-line"></i> Reportes
+                            </a>
+                        </li>
+                        
+                        <!-- Alertas -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-bell"></i> Alertas
+                            </a>
+                        </li>
+                        
+                        <!-- Separador para configuración -->
+                        <li class="nav-item mt-3">
+                            <small class="text-muted px-3">SISTEMA</small>
+                        </li>
+                        
+                        <!-- Configuración -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-cog"></i> Configuración
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <!-- Información del usuario en la parte inferior del sidebar -->
+                    <div class="sidebar-user-info p-3 border-top">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-user-circle fa-2x text-light"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-2">
+                                <div class="text-white small fw-bold">{{ user.username }}</div>
+                                <div class="text-muted small">{% now "H:i" %}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Main Content -->
+            <div class="col-lg-10 col-md-9 py-4">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle sidebar
+        document.getElementById('toggle-sidebar').addEventListener('click', function() {
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('full');
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

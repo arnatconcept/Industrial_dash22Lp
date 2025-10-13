@@ -1,0 +1,1118 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes - Sistema de Gestión{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Reportes del Sistema</h1>
+        <div class="btn-group">
+            <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" 
+                    aria-haspopup="true" aria-expanded="false">
+                <i class="fas fa-download fa-sm"></i> Exportar Reporte
+            </button>
+            <div class="dropdown-menu">
+                <a class="dropdown-item" href="#" onclick="exportarReporte('pdf')">
+                    <i class="fas fa-file-pdf text-danger"></i> PDF
+                </a>
+                <a class="dropdown-item" href="#" onclick="exportarReporte('excel')">
+                    <i class="fas fa-file-excel text-success"></i> Excel
+                </a>
+                <a class="dropdown-item" href="#" onclick="exportarReporte('csv')">
+                    <i class="fas fa-file-csv text-info"></i> CSV
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros de Reportes</h6>
+        </div>
+        <div class="card-body">
+            <form id="filtroReportes">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="tipoReporte">Tipo de Reporte</label>
+                            <select class="form-control" id="tipoReporte" onchange="cambiarTipoReporte()">
+                                <option value="">Seleccionar tipo...</option>
+                                <option value="produccion">Producción</option>
+                                <option value="mantenimiento">Mantenimiento</option>
+                                <option value="fallas">Fallas</option>
+                                <option value="paradas">Paradas</option>
+                                <option value="inspecciones">Inspecciones</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="fechaDesde">Fecha Desde</label>
+                            <input type="date" class="form-control" id="fechaDesde">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="fechaHasta">Fecha Hasta</label>
+                            <input type="date" class="form-control" id="fechaHasta">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="linea">Línea de Producción</label>
+                            <select class="form-control" id="linea">
+                                <option value="">Todas las líneas</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <!-- Filtros específicos para mantenimiento -->
+                <div class="row" id="filtrosMantenimiento" style="display: none;">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="estadoOrden">Estado de Orden</label>
+                            <select class="form-control" id="estadoOrden">
+                                <option value="">Todos los estados</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="asignada">Asignada</option>
+                                <option value="en_proceso">En Proceso</option>
+                                <option value="completada">Completada</option>
+                                <option value="cancelada">Cancelada</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="tipoMantenimiento">Tipo de Mantenimiento</label>
+                            <select class="form-control" id="tipoMantenimiento">
+                                <option value="">Todos los tipos</option>
+                                <option value="preventivo">Preventivo</option>
+                                <option value="correctivo">Correctivo</option>
+                                <option value="predictivo">Predictivo</option>
+                                <option value="calibracion">Calibración</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="prioridadOrden">Prioridad</label>
+                            <select class="form-control" id="prioridadOrden">
+                                <option value="">Todas las prioridades</option>
+                                <option value="baja">Baja</option>
+                                <option value="media">Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="critica">Crítica</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-12 text-right">
+                        <button type="button" class="btn btn-primary" onclick="generarReporte()">
+                            <i class="fas fa-chart-bar"></i> Generar Reporte
+                        </button>
+                        <button type="reset" class="btn btn-secondary" onclick="limpiarFiltros()">
+                            <i class="fas fa-redo"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estadísticas Rápidas -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1" id="estadistica1Titulo">
+                                Total Producción
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="estadistica1Valor">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-industry fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1" id="estadistica2Titulo">
+                                Eficiencia
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="estadistica2Valor">0%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1" id="estadistica3Titulo">
+                                Tiempo Paradas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="estadistica3Valor">0 min</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1" id="estadistica4Titulo">
+                                Fallas Reportadas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="estadistica4Valor">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos y Tablas -->
+    <div class="row">
+        <!-- Gráfico Principal -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary" id="tituloGrafico">Reporte de Producción</h6>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cambiarTipoGrafico('line')">
+                            <i class="fas fa-chart-line"></i> Línea
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cambiarTipoGrafico('bar')">
+                            <i class="fas fa-chart-bar"></i> Barras
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="reporteChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datos Detallados -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Resumen Detallado</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="tablaResumen" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Métrica</th>
+                                    <th>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cuerpoResumen">
+                                <tr><td colspan="2" class="text-center">No hay datos</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Datos Detallados -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Datos Detallados</h6>
+            <span class="badge badge-primary" id="contadorRegistros">0 registros</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="tablaDetalles" width="100%" cellspacing="0">
+                    <thead id="cabeceraDetalles">
+                        <!-- Se llena dinámicamente -->
+                    </thead>
+                    <tbody id="cuerpoDetalles">
+                        <tr><td colspan="7" class="text-center">Seleccione un tipo de reporte y genere el reporte</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Variables globales con autenticación
+const API_BASE = "/api";
+let token = localStorage.getItem("access_token");
+let reporteChart = null;
+let tipoGraficoActual = 'line';
+
+// Función de logout
+function logout() {
+    localStorage.clear();
+    window.location.href = "/login.html";
+}
+
+// Función para hacer fetch con autenticación
+async function fetchAPI(endpoint) {
+    try {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            headers: { 
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        });
+        
+        if (response.status === 401) { 
+            logout(); 
+            return null;
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        return null;
+    }
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    if (!token) {
+        logout();
+        return;
+    }
+    
+    cargarLineasProduccion();
+    establecerFechasPorDefecto();
+});
+
+function establecerFechasPorDefecto() {
+    const hoy = new Date().toISOString().split('T')[0];
+    const hace7Dias = new Date();
+    hace7Dias.setDate(hace7Dias.getDate() - 7);
+    const fechaHace7Dias = hace7Dias.toISOString().split('T')[0];
+    
+    document.getElementById('fechaDesde').value = fechaHace7Dias;
+    document.getElementById('fechaHasta').value = hoy;
+}
+
+function cambiarTipoReporte() {
+    const tipoReporte = document.getElementById('tipoReporte').value;
+    const filtrosMantenimiento = document.getElementById('filtrosMantenimiento');
+    
+    if (tipoReporte === 'mantenimiento') {
+        filtrosMantenimiento.style.display = 'flex';
+    } else {
+        filtrosMantenimiento.style.display = 'none';
+    }
+}
+
+function limpiarFiltros() {
+    document.getElementById('filtrosMantenimiento').style.display = 'none';
+    document.getElementById('estadoOrden').value = '';
+    document.getElementById('tipoMantenimiento').value = '';
+    document.getElementById('prioridadOrden').value = '';
+}
+
+async function cargarLineasProduccion() {
+    try {
+        const lineas = await fetchAPI('/lineas/');
+        if (!lineas) return;
+        
+        const selectLinea = document.getElementById('linea');
+        lineas.forEach(linea => {
+            const option = document.createElement('option');
+            option.value = linea.id;
+            option.textContent = linea.nombre;
+            selectLinea.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error cargando líneas:', error);
+    }
+}
+
+async function generarReporte() {
+    const tipoReporte = document.getElementById('tipoReporte').value;
+    const fechaDesde = document.getElementById('fechaDesde').value;
+    const fechaHasta = document.getElementById('fechaHasta').value;
+    const linea = document.getElementById('linea').value;
+
+    if (!tipoReporte) {
+        alert('Por favor seleccione un tipo de reporte');
+        return;
+    }
+
+    try {
+        mostrarLoading();
+
+        // Obtener datos según el tipo de reporte
+        let datos = await obtenerDatosReporte(tipoReporte, fechaDesde, fechaHasta, linea);
+        
+        if (datos) {
+            // Actualizar estadísticas
+            actualizarEstadisticas(datos, tipoReporte);
+            
+            // Generar gráfico
+            await generarGrafico(datos, tipoReporte, fechaDesde, fechaHasta);
+            
+            // Actualizar tabla de detalles
+            actualizarTablaDetalles(datos, tipoReporte);
+        }
+
+        ocultarLoading();
+    } catch (error) {
+        console.error('Error generando reporte:', error);
+        ocultarLoading();
+        alert('Error al generar el reporte: ' + error.message);
+    }
+}
+
+async function obtenerDatosReporte(tipoReporte, fechaDesde, fechaHasta, linea) {
+    let endpoint = '';
+    let params = new URLSearchParams();
+
+    // Parámetros comunes
+    if (fechaDesde && fechaHasta) {
+        params.append('fecha_desde', fechaDesde);
+        params.append('fecha_hasta', fechaHasta);
+    }
+    if (linea) {
+        params.append('linea_id', linea);
+    }
+
+    switch(tipoReporte) {
+        case 'produccion':
+            endpoint = `/produccion-turno/?${params}`;
+            break;
+        case 'mantenimiento':
+            // Para mantenimiento, usamos parámetros específicos
+            const estado = document.getElementById('estadoOrden').value;
+            const tipoMantenimiento = document.getElementById('tipoMantenimiento').value;
+            const prioridad = document.getElementById('prioridadOrden').value;
+            
+            if (estado) params.append('estado', estado);
+            if (tipoMantenimiento) params.append('tipo', tipoMantenimiento);
+            if (prioridad) params.append('prioridad', prioridad);
+            
+            endpoint = `/ordenes/?${params}`;
+            break;
+        case 'fallas':
+            endpoint = `/fallas-turno/?${params}`;
+            break;
+        case 'paradas':
+            endpoint = `/paradas-turno/?${params}`;
+            break;
+        case 'inspecciones':
+            endpoint = `/ejecuciones-inspeccion/?${params}`;
+            break;
+    }
+
+    return await fetchAPI(endpoint);
+}
+
+function actualizarEstadisticas(datos, tipoReporte) {
+    if (!datos || !Array.isArray(datos)) {
+        resetearEstadisticas();
+        return;
+    }
+
+    switch(tipoReporte) {
+        case 'produccion':
+            actualizarEstadisticasProduccion(datos);
+            break;
+        case 'mantenimiento':
+            actualizarEstadisticasMantenimiento(datos);
+            break;
+        case 'fallas':
+            actualizarEstadisticasFallas(datos);
+            break;
+        case 'paradas':
+            actualizarEstadisticasParadas(datos);
+            break;
+        case 'inspecciones':
+            actualizarEstadisticasInspecciones(datos);
+            break;
+        default:
+            resetearEstadisticas();
+    }
+}
+
+function actualizarEstadisticasProduccion(datos) {
+    const totalProduccion = datos.reduce((sum, item) => sum + (item.cantidad || 0), 0);
+    const totalMeta = datos.reduce((sum, item) => sum + (item.meta_produccion || 0), 0);
+    const eficiencia = totalMeta > 0 ? (totalProduccion / totalMeta * 100) : 0;
+
+    document.getElementById('estadistica1Titulo').textContent = 'Total Producción';
+    document.getElementById('estadistica1Valor').textContent = totalProduccion.toLocaleString();
+    
+    document.getElementById('estadistica2Titulo').textContent = 'Eficiencia';
+    document.getElementById('estadistica2Valor').textContent = eficiencia.toFixed(1) + '%';
+    
+    document.getElementById('estadistica3Titulo').textContent = 'Días Reportados';
+    document.getElementById('estadistica3Valor').textContent = new Set(datos.map(d => d.fecha)).size;
+    
+    document.getElementById('estadistica4Titulo').textContent = 'Registros';
+    document.getElementById('estadistica4Valor').textContent = datos.length;
+}
+
+function actualizarEstadisticasMantenimiento(datos) {
+    const totalOrdenes = datos.length;
+    const ordenesCompletadas = datos.filter(o => o.estado === 'completada').length;
+    const ordenesPendientes = datos.filter(o => 
+        o.estado === 'pendiente' || o.estado === 'asignada' || o.estado === 'en_proceso'
+    ).length;
+    
+    // Calcular tiempo promedio de resolución (solo para órdenes completadas)
+    const ordenesCompletadasConFecha = datos.filter(o => 
+        o.estado === 'completada' && o.fecha_creacion && o.fecha_cierre
+    );
+    let tiempoPromedio = 'N/A';
+    
+    if (ordenesCompletadasConFecha.length > 0) {
+        const totalTiempo = ordenesCompletadasConFecha.reduce((sum, orden) => {
+            const inicio = new Date(orden.fecha_creacion);
+            const fin = new Date(orden.fecha_cierre);
+            return sum + (fin - inicio);
+        }, 0);
+        tiempoPromedio = Math.round(totalTiempo / ordenesCompletadasConFecha.length / (1000 * 60 * 60 * 24)) + ' días';
+    }
+
+    document.getElementById('estadistica1Titulo').textContent = 'Total Órdenes';
+    document.getElementById('estadistica1Valor').textContent = totalOrdenes;
+    
+    document.getElementById('estadistica2Titulo').textContent = 'Completadas';
+    document.getElementById('estadistica2Valor').textContent = ordenesCompletadas;
+    
+    document.getElementById('estadistica3Titulo').textContent = 'Pendientes';
+    document.getElementById('estadistica3Valor').textContent = ordenesPendientes;
+    
+    document.getElementById('estadistica4Titulo').textContent = 'Tiempo Promedio';
+    document.getElementById('estadistica4Valor').textContent = tiempoPromedio;
+}
+
+function actualizarEstadisticasFallas(datos) {
+    const totalFallas = datos.length;
+    const fallasCriticas = datos.filter(f => f.gravedad === 'critica').length;
+    const tiempoTotalParadas = datos.reduce((sum, f) => sum + (f.duracion_minutos || 0), 0);
+    const tiposFallas = [...new Set(datos.map(f => f.tipo))].length;
+
+    document.getElementById('estadistica1Titulo').textContent = 'Total Fallas';
+    document.getElementById('estadistica1Valor').textContent = totalFallas;
+    
+    document.getElementById('estadistica2Titulo').textContent = 'Fallas Críticas';
+    document.getElementById('estadistica2Valor').textContent = fallasCriticas;
+    
+    document.getElementById('estadistica3Titulo').textContent = 'Tiempo Paradas';
+    document.getElementById('estadistica3Valor').textContent = tiempoTotalParadas + ' min';
+    
+    document.getElementById('estadistica4Titulo').textContent = 'Tipos de Fallas';
+    document.getElementById('estadistica4Valor').textContent = tiposFallas;
+}
+
+function actualizarEstadisticasParadas(datos) {
+    const totalParadas = datos.length;
+    const tiempoTotal = datos.reduce((sum, p) => sum + (p.duracion_minutos || 0), 0);
+    const paradasProgramadas = datos.filter(p => p.tipo === 'programada').length;
+    const motivosParadas = [...new Set(datos.map(p => p.motivo))].length;
+
+    document.getElementById('estadistica1Titulo').textContent = 'Total Paradas';
+    document.getElementById('estadistica1Valor').textContent = totalParadas;
+    
+    document.getElementById('estadistica2Titulo').textContent = 'Tiempo Total';
+    document.getElementById('estadistica2Valor').textContent = tiempoTotal + ' min';
+    
+    document.getElementById('estadistica3Titulo').textContent = 'Programadas';
+    document.getElementById('estadistica3Valor').textContent = paradasProgramadas;
+    
+    document.getElementById('estadistica4Titulo').textContent = 'Motivos Diferentes';
+    document.getElementById('estadistica4Valor').textContent = motivosParadas;
+}
+
+function actualizarEstadisticasInspecciones(datos) {
+    // Implementar según la estructura de datos de inspecciones
+    document.getElementById('estadistica1Titulo').textContent = 'Total Inspecciones';
+    document.getElementById('estadistica1Valor').textContent = datos.length;
+    
+    document.getElementById('estadistica2Titulo').textContent = 'Por Implementar';
+    document.getElementById('estadistica2Valor').textContent = 'N/A';
+    
+    document.getElementById('estadistica3Titulo').textContent = 'Por Implementar';
+    document.getElementById('estadistica3Valor').textContent = 'N/A';
+    
+    document.getElementById('estadistica4Titulo').textContent = 'Por Implementar';
+    document.getElementById('estadistica4Valor').textContent = 'N/A';
+}
+
+function resetearEstadisticas() {
+    for (let i = 1; i <= 4; i++) {
+        document.getElementById(`estadistica${i}Valor`).textContent = '0';
+    }
+}
+
+async function generarGrafico(datos, tipoReporte, fechaDesde, fechaHasta) {
+    if (!datos || !Array.isArray(datos) || datos.length === 0) {
+        mostrarGraficoVacio('No hay datos disponibles');
+        return;
+    }
+
+    // Destruir gráfico anterior si existe
+    if (reporteChart) {
+        reporteChart.destroy();
+    }
+
+    const ctx = document.getElementById('reporteChart').getContext('2d');
+    const config = obtenerConfiguracionGrafico(datos, tipoReporte, fechaDesde, fechaHasta);
+    
+    reporteChart = new Chart(ctx, config);
+}
+
+function obtenerConfiguracionGrafico(datos, tipoReporte, fechaDesde, fechaHasta) {
+    const titulo = obtenerTituloGrafico(tipoReporte, fechaDesde, fechaHasta);
+    document.getElementById('tituloGrafico').textContent = titulo;
+
+    switch(tipoReporte) {
+        case 'produccion':
+            return configGraficoProduccion(datos, titulo);
+        case 'mantenimiento':
+            return configGraficoMantenimiento(datos, titulo);
+        case 'fallas':
+            return configGraficoFallas(datos, titulo);
+        case 'paradas':
+            return configGraficoParadas(datos, titulo);
+        default:
+            return configGraficoBasico(datos, titulo);
+    }
+}
+
+function configGraficoProduccion(datos, titulo) {
+    // Agrupar por fecha
+    const datosPorFecha = {};
+    datos.forEach(item => {
+        if (!datosPorFecha[item.fecha]) {
+            datosPorFecha[item.fecha] = { cantidad: 0, meta: 0 };
+        }
+        datosPorFecha[item.fecha].cantidad += item.cantidad || 0;
+        datosPorFecha[item.fecha].meta += item.meta_produccion || 0;
+    });
+
+    const fechas = Object.keys(datosPorFecha).sort();
+    const cantidades = fechas.map(fecha => datosPorFecha[fecha].cantidad);
+    const metas = fechas.map(fecha => datosPorFecha[fecha].meta);
+
+    return {
+        type: tipoGraficoActual,
+        data: {
+            labels: fechas,
+            datasets: [
+                {
+                    label: 'Producción Real',
+                    data: cantidades,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                },
+                {
+                    label: 'Meta de Producción',
+                    data: metas,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderDash: [5, 5],
+                    tension: 0.1,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: titulo }
+            }
+        }
+    };
+}
+
+function configGraficoMantenimiento(datos, titulo) {
+    // Agrupar por estado
+    const estados = {};
+    datos.forEach(orden => {
+        if (!estados[orden.estado]) {
+            estados[orden.estado] = 0;
+        }
+        estados[orden.estado]++;
+    });
+
+    const colores = {
+        'pendiente': 'rgba(255, 205, 86, 0.8)',
+        'asignada': 'rgba(54, 162, 235, 0.8)',
+        'en_proceso': 'rgba(255, 159, 64, 0.8)',
+        'completada': 'rgba(75, 192, 192, 0.8)',
+        'cancelada': 'rgba(255, 99, 132, 0.8)'
+    };
+
+    return {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(estados).map(estado => 
+                estado.charAt(0).toUpperCase() + estado.slice(1).replace('_', ' ')
+            ),
+            datasets: [{
+                data: Object.values(estados),
+                backgroundColor: Object.keys(estados).map(estado => 
+                    colores[estado] || 'rgba(201, 203, 207, 0.8)'
+                ),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: titulo },
+                legend: { position: 'bottom' }
+            }
+        }
+    };
+}
+
+function configGraficoFallas(datos, titulo) {
+    // Agrupar por tipo y gravedad
+    const tipos = {};
+    datos.forEach(falla => {
+        if (!tipos[falla.tipo]) {
+            tipos[falla.tipo] = { total: 0, gravedades: {} };
+        }
+        tipos[falla.tipo].total++;
+        
+        if (!tipos[falla.tipo].gravedades[falla.gravedad]) {
+            tipos[falla.tipo].gravedades[falla.gravedad] = 0;
+        }
+        tipos[falla.tipo].gravedades[falla.gravedad]++;
+    });
+
+    return {
+        type: 'bar',
+        data: {
+            labels: Object.keys(tipos),
+            datasets: [
+                {
+                    label: 'Total Fallas',
+                    data: Object.values(tipos).map(t => t.total),
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: titulo }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    };
+}
+
+function configGraficoParadas(datos, titulo) {
+    // Agrupar por motivo
+    const motivos = {};
+    datos.forEach(parada => {
+        if (!motivos[parada.motivo]) {
+            motivos[parada.motivo] = { count: 0, tiempo: 0 };
+        }
+        motivos[parada.motivo].count++;
+        motivos[parada.motivo].tiempo += parada.duracion_minutos || 0;
+    });
+
+    return {
+        type: 'bar',
+        data: {
+            labels: Object.keys(motivos),
+            datasets: [
+                {
+                    label: 'Cantidad de Paradas',
+                    data: Object.values(motivos).map(m => m.count),
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Tiempo Total (min)',
+                    data: Object.values(motivos).map(m => m.tiempo),
+                    backgroundColor: 'rgba(255, 159, 64, 0.8)',
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: titulo }
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: true
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    };
+}
+
+function configGraficoBasico(datos, titulo) {
+    return {
+        type: tipoGraficoActual,
+        data: {
+            labels: ['Datos'],
+            datasets: [{
+                label: 'Registros',
+                data: [datos.length],
+                backgroundColor: 'rgba(201, 203, 207, 0.8)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: titulo }
+            }
+        }
+    };
+}
+
+function obtenerTituloGrafico(tipoReporte, fechaDesde, fechaHasta) {
+    const titulos = {
+        'produccion': 'Reporte de Producción',
+        'mantenimiento': 'Distribución de Órdenes de Mantenimiento',
+        'fallas': 'Fallas por Tipo',
+        'paradas': 'Paradas por Motivo',
+        'inspecciones': 'Reporte de Inspecciones'
+    };
+    
+    let titulo = titulos[tipoReporte] || 'Reporte';
+    if (fechaDesde && fechaHasta) {
+        titulo += ` (${fechaDesde} a ${fechaHasta})`;
+    }
+    
+    return titulo;
+}
+
+function mostrarGraficoVacio(mensaje) {
+    if (reporteChart) {
+        reporteChart.destroy();
+    }
+
+    const ctx = document.getElementById('reporteChart').getContext('2d');
+    reporteChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [mensaje],
+            datasets: [{
+                label: 'Sin datos',
+                data: [0],
+                backgroundColor: 'rgba(201, 203, 207, 0.2)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Sin datos disponibles' }
+            }
+        }
+    });
+}
+
+function actualizarTablaDetalles(datos, tipoReporte) {
+    if (!datos || !Array.isArray(datos)) {
+        document.getElementById('cuerpoDetalles').innerHTML = 
+            '<tr><td colspan="7" class="text-center">No hay datos disponibles</td></tr>';
+        document.getElementById('contadorRegistros').textContent = '0 registros';
+        return;
+    }
+
+    document.getElementById('contadorRegistros').textContent = `${datos.length} registros`;
+
+    switch(tipoReporte) {
+        case 'produccion':
+            llenarTablaProduccion(datos);
+            break;
+        case 'mantenimiento':
+            llenarTablaMantenimiento(datos);
+            break;
+        case 'fallas':
+            llenarTablaFallas(datos);
+            break;
+        case 'paradas':
+            llenarTablaParadas(datos);
+            break;
+        default:
+            llenarTablaGenerica(datos);
+    }
+}
+
+function llenarTablaProduccion(datos) {
+    const cabecera = `
+        <tr>
+            <th>Fecha</th>
+            <th>Línea</th>
+            <th>Turno</th>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Meta</th>
+            <th>Eficiencia</th>
+        </tr>
+    `;
+    
+    let cuerpo = '';
+    datos.forEach(item => {
+        const eficiencia = item.meta_produccion ? 
+            ((item.cantidad / item.meta_produccion) * 100).toFixed(1) + '%' : 'N/A';
+            
+        cuerpo += `
+            <tr>
+                <td>${item.fecha}</td>
+                <td>${item.linea_nombre || item.linea?.nombre || 'N/A'}</td>
+                <td>${item.turno_nombre || item.turno?.nombre || 'N/A'}</td>
+                <td>${item.producto || 'N/A'}</td>
+                <td>${(item.cantidad || 0).toLocaleString()}</td>
+                <td>${(item.meta_produccion || 0).toLocaleString()}</td>
+                <td>${eficiencia}</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('cabeceraDetalles').innerHTML = cabecera;
+    document.getElementById('cuerpoDetalles').innerHTML = cuerpo || '<tr><td colspan="7" class="text-center">No hay datos</td></tr>';
+}
+
+function llenarTablaMantenimiento(datos) {
+    const cabecera = `
+        <tr>
+            <th>Título</th>
+            <th>Estado</th>
+            <th>Tipo</th>
+            <th>Prioridad</th>
+            <th>Operario</th>
+            <th>Fecha Creación</th>
+            <th>Fecha Cierre</th>
+        </tr>
+    `;
+    
+    let cuerpo = '';
+    datos.forEach(item => {
+        cuerpo += `
+            <tr>
+                <td>${item.titulo}</td>
+                <td><span class="badge badge-${obtenerClaseEstado(item.estado)}">${item.estado_display || item.estado}</span></td>
+                <td>${item.tipo_display || item.tipo}</td>
+                <td><span class="badge badge-${obtenerClasePrioridad(item.prioridad)}">${item.prioridad_display || item.prioridad}</span></td>
+                <td>${item.operario_asignado_nombre || item.operario_asignado?.username || 'No asignado'}</td>
+                <td>${formatearFecha(item.fecha_creacion)}</td>
+                <td>${item.fecha_cierre ? formatearFecha(item.fecha_cierre) : 'Pendiente'}</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('cabeceraDetalles').innerHTML = cabecera;
+    document.getElementById('cuerpoDetalles').innerHTML = cuerpo || '<tr><td colspan="7" class="text-center">No hay datos</td></tr>';
+}
+
+function llenarTablaFallas(datos) {
+    const cabecera = `
+        <tr>
+            <th>Fecha</th>
+            <th>Línea</th>
+            <th>Equipo</th>
+            <th>Tipo</th>
+            <th>Gravedad</th>
+            <th>Duración (min)</th>
+            <th>Descripción</th>
+        </tr>
+    `;
+    
+    let cuerpo = '';
+    datos.forEach(item => {
+        cuerpo += `
+            <tr>
+                <td>${item.fecha}</td>
+                <td>${item.linea_nombre || item.linea?.nombre || 'N/A'}</td>
+                <td>${item.equipo_nombre || item.equipo?.nombre || 'N/A'}</td>
+                <td>${item.tipo}</td>
+                <td><span class="badge badge-${obtenerClaseGravedad(item.gravedad)}">${item.gravedad}</span></td>
+                <td>${item.duracion_minutos || 0}</td>
+                <td>${item.descripcion ? item.descripcion.substring(0, 50) + '...' : ''}</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('cabeceraDetalles').innerHTML = cabecera;
+    document.getElementById('cuerpoDetalles').innerHTML = cuerpo || '<tr><td colspan="7" class="text-center">No hay datos</td></tr>';
+}
+
+function llenarTablaParadas(datos) {
+    const cabecera = `
+        <tr>
+            <th>Fecha</th>
+            <th>Línea</th>
+            <th>Motivo</th>
+            <th>Tipo</th>
+            <th>Duración (min)</th>
+            <th>Equipo</th>
+            <th>Descripción</th>
+        </tr>
+    `;
+    
+    let cuerpo = '';
+    datos.forEach(item => {
+        cuerpo += `
+            <tr>
+                <td>${item.fecha}</td>
+                <td>${item.linea_nombre || item.linea?.nombre || 'N/A'}</td>
+                <td>${item.motivo}</td>
+                <td>${item.tipo}</td>
+                <td>${item.duracion_minutos || 0}</td>
+                <td>${item.equipo_nombre || item.equipo?.nombre || 'N/A'}</td>
+                <td>${item.descripcion ? item.descripcion.substring(0, 50) + '...' : ''}</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('cabeceraDetalles').innerHTML = cabecera;
+    document.getElementById('cuerpoDetalles').innerHTML = cuerpo || '<tr><td colspan="7" class="text-center">No hay datos</td></tr>';
+}
+
+function llenarTablaGenerica(datos) {
+    const cabecera = `
+        <tr>
+            <th>ID</th>
+            <th>Datos</th>
+        </tr>
+    `;
+    
+    let cuerpo = '';
+    datos.forEach((item, index) => {
+        cuerpo += `
+            <tr>
+                <td>${item.id || index + 1}</td>
+                <td>${JSON.stringify(item).substring(0, 100)}...</td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('cabeceraDetalles').innerHTML = cabecera;
+    document.getElementById('cuerpoDetalles').innerHTML = cuerpo || '<tr><td colspan="2" class="text-center">No hay datos</td></tr>';
+}
+
+// Funciones auxiliares
+function obtenerClaseEstado(estado) {
+    const clases = {
+        'pendiente': 'warning',
+        'asignada': 'info',
+        'en_proceso': 'primary',
+        'completada': 'success',
+        'cancelada': 'danger'
+    };
+    return clases[estado] || 'secondary';
+}
+
+function obtenerClasePrioridad(prioridad) {
+    const clases = {
+        'baja': 'secondary',
+        'media': 'info',
+        'alta': 'warning',
+        'critica': 'danger'
+    };
+    return clases[prioridad] || 'secondary';
+}
+
+function obtenerClaseGravedad(gravedad) {
+    const clases = {
+        'leve': 'success',
+        'moderada': 'warning',
+        'grave': 'danger',
+        'critica': 'dark'
+    };
+    return clases[gravedad] || 'secondary';
+}
+
+function formatearFecha(fechaString) {
+    if (!fechaString) return 'N/A';
+    const fecha = new Date(fechaString);
+    return fecha.toLocaleDateString('es-ES');
+}
+
+function cambiarTipoGrafico(tipo) {
+    tipoGraficoActual = tipo;
+    // Regenerar el reporte con el nuevo tipo de gráfico
+    const tipoReporte = document.getElementById('tipoReporte').value;
+    if (tipoReporte) {
+        generarReporte();
+    }
+}
+
+function exportarReporte(formato) {
+    alert(`Exportación en formato ${formato.toUpperCase()} se implementará próximamente`);
+    // Aquí iría la lógica real de exportación
+}
+
+function mostrarLoading() {
+    // Implementación básica de loading
+    console.log('Cargando...');
+}
+
+function ocultarLoading() {
+    console.log('Carga completada');
+}
+</script>
+
+<style>
+.badge-warning { background-color: #f6c23e; }
+.badge-info { background-color: #36b9cc; }
+.badge-primary { background-color: #4e73df; }
+.badge-success { background-color: #1cc88a; }
+.badge-danger { background-color: #e74a3b; }
+.badge-secondary { background-color: #858796; }
+.badge-dark { background-color: #5a5c69; }
+</style>
+{% endblock %}

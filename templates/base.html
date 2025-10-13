@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Gestión{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-bg: #f8f9fa;
+            --dark-bg: #34495e;
+            --sidebar-width: 220px;
+            --navbar-height: 60px;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        body {
+            background-color: #f5f7f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            padding-top: var(--navbar-height);
+        }
+        
+        /* ===== LOADING ANIMATION ===== */
+        .loading-overlay {
+            position: fixed;
+            top: var(--navbar-height);
+            left: var(--sidebar-width);
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-content {
+            text-align: center;
+            max-width: 300px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        .loading-text {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .loading-subtext {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ===== NAVBAR COMPACTO ===== */
+        .navbar {
+            min-height: var(--navbar-height);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-bg) 100%) !important;
+            border-bottom: 1px solid #465c7a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 0.4rem 1rem;
+        }
+
+        .navbar-brand {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .navbar-nav .nav-link {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+            border-radius: 4px;
+            margin: 0 1px;
+            transition: var(--transition);
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+        }
+
+        .user-info .small {
+            font-size: 0.85rem;
+        }
+
+        .user-info .x-small {
+            font-size: 0.7rem;
+        }
+
+        /* ===== SIDEBAR COMPACTO ===== */
+        .sidebar {
+            background-color: var(--dark-bg);
+            color: white;
+            min-height: calc(100vh - var(--navbar-height));
+            position: sticky;
+            top: var(--navbar-height);
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.8rem 1rem;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: var(--secondary-color);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-section {
+            padding: 0.5rem 0;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 0 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-user-info {
+            padding: 0.75rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* ===== COMPONENTES ===== */
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .kpi-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .kpi-trend {
+            font-size: 0.9rem;
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+            margin-top: 0.5rem;
+        }
+        
+        .trend-up {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #27ae60;
+        }
+        
+        .trend-down {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem;
+        }
+        
+        .filter-bar {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+        }
+        
+        .status-badge {
+            padding: 0.35rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            color: #6c757d;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+        
+        .recent-item {
+            border-left: 3px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .recent-item:hover {
+            background-color: #f8f9fa;
+            border-left-color: var(--secondary-color);
+        }
+        
+        /* ===== LAYOUT RESPONSIVE ===== */
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .main-content {
+            transition: var(--transition);
+        }
+
+        .main-content.full {
+            margin-left: 0;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: var(--navbar-height);
+                z-index: 1000;
+                height: calc(100vh - var(--navbar-height));
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .loading-overlay {
+                left: 0;
+            }
+        }
+
+        /* ===== UTILIDADES ===== */
+        .badge-sm {
+            font-size: 0.65rem;
+            padding: 0.2em 0.4em;
+        }
+
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 0.9rem;
+        }
+
+        .dropdown-header {
+            padding: 0.5rem 1rem;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        /* ===== LOGIN PAGE ===== */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-bg) 100%);
+        }
+        
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .login-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .login-body {
+            padding: 2rem;
+        }
+        
+        .form-control:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar Compacto -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container-fluid">
+            <!-- Logo y Nombre -->
+            <a class="navbar-brand d-flex align-items-center fw-bold" href="#">
+                <i class="fas fa-industry me-2 text-warning"></i>
+                <span class="d-none d-sm-inline">Sistema de Gestión Industrial</span>
+                <span class="d-inline d-sm-none">SGI</span>
+            </a>
+
+            <!-- Botón toggle para móviles -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Botón para toggle del sidebar -->
+            <button class="btn btn-outline-light btn-sm ms-2 d-lg-none" id="toggle-sidebar" title="Mostrar/ocultar menú">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <!-- Navegación principal -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Navegación rápida - Solo en desktop -->
+                <ul class="navbar-nav me-auto d-none d-lg-flex">
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'produccion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'produccion_dashboard' %}">
+                            <i class="fas fa-cogs me-1"></i> Producción
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'mantenimiento' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'mantenimiento_dashboard' %}">
+                            <i class="fas fa-tools me-1"></i> Mantenimiento
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'ordenes' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'ordenes_dashboard' %}">
+                            <i class="fas fa-clipboard-list me-1"></i> Órdenes
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Información del sistema -->
+                <div class="navbar-text d-none d-md-block me-3">
+                    <small class="text-light">
+                        <i class="fas fa-circle text-success me-1"></i>
+                        <span id="system-status">En línea</span>
+                    </small>
+                </div>
+
+                <!-- Usuario y dropdown -->
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center py-0" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <div class="user-avatar me-2 d-flex align-items-center">
+                                <i class="fas fa-user-circle text-light"></i>
+                            </div>
+                            <div class="user-info d-none d-md-block">
+                                <div class="fw-semibold small">{{ user.username }}</div>
+                                <div class="x-small text-light opacity-75">{{ user.get_full_name|default:"Usuario" }}</div>
+                            </div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                            <li class="dropdown-header">
+                                <div class="fw-bold">{{ user.username }}</div>
+                                <small class="text-muted">{{ user.email|default:"No especificado" }}</small>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-user me-2 text-primary"></i>Mi Perfil
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-cog me-2 text-secondary"></i>Configuración
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-bell me-2 text-warning"></i>Notificaciones
+                                    <span class="badge bg-danger badge-sm ms-2">3</span>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{% url 'logout' %}" id="logout-btn">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="global-loader">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Cargando datos...</div>
+            <div class="loading-subtext">Por favor, espere un momento</div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-lg-2 col-md-3 p-0">
+                <div class="sidebar">
+                    <ul class="nav flex-column">
+                        <!-- Dashboard Principal -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'inventario_dashboard' %}active{% endif %}" href="{% url 'inventario_dashboard' %}">
+                                  <i class="fas fa-tachometer-alt"></i> Inventario
+                            </a>
+                        </li>
+                        
+                        <!-- Producción -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'produccion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'produccion_dashboard' %}">
+                                <i class="fas fa-cogs"></i> Producción
+                            </a>
+                        </li>
+                        
+                        <!-- Mantenimiento -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'mantenimiento' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'mantenimiento_dashboard' %}">
+                                <i class="fas fa-tools"></i> Mantenimiento
+                            </a>
+                        </li>
+                        
+                        <!-- Órdenes de Trabajo -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'ordenes' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'ordenes_dashboard' %}">
+                                <i class="fas fa-clipboard-list"></i> Órdenes de Trabajo
+                            </a>
+                        </li>
+                        
+                        <!-- Fallas por Turno -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'fallas' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'dashboard_fallas' %}">
+                                <i class="fas fa-exclamation-triangle"></i> Fallas por Turno
+                            </a>
+                        </li>
+                        
+                        <div class="sidebar-section">
+                            <div class="sidebar-title">ANÁLISIS</div>
+                            
+                            <!-- Reportes -->
+                            <li class="nav-item">
+                                <a class="nav-link {% if 'reportes' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'reportes_dashboard' %}">
+                                    <i class="fas fa-chart-line"></i> Reportes
+                                </a>
+                            </li>
+                            
+                            <!-- Alertas -->
+                            <li class="nav-item">
+                                <a class="nav-link {% if 'alertas' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'alertas_dashboard' %}">
+                                    <i class="fas fa-bell"></i> Alertas
+                                    <span class="badge bg-danger badge-sm ms-1">5</span>
+                                </a>
+                            </li>
+                        </div>
+
+                        <div class="sidebar-section">
+                            <div class="sidebar-title">SISTEMA</div>
+                            
+                            <!-- Configuración -->
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-cog"></i> Configuración
+                                </a>
+                            </li>
+                        </div>
+                    </ul>
+                    
+                    <!-- Información del usuario en la parte inferior del sidebar -->
+                    <div class="sidebar-user-info">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-user-circle text-light"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-2">
+                                <div class="text-white small fw-bold">{{ user.username }}</div>
+                                <div class="text-muted small" id="sidebar-time">{% now "H:i" %}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-lg-10 col-md-9 py-4 main-content">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Sistema de loading global
+        const globalLoader = {
+            show: function(message = 'Cargando datos...') {
+                
+                const loader = document.getElementById('global-loader');
+                const textElement = loader.querySelector('.loading-text');
+                textElement.textContent = message;
+                loader.classList.add('active');
+            },
+            
+            hide: function() {
+                const loader = document.getElementById('global-loader');
+                loader.classList.remove('active');
+            },
+            
+            // Para operaciones asíncronas
+            wrapAsync: async function(asyncFunction, loadingMessage = 'Cargando...') {
+                this.show(loadingMessage);
+                try {
+                    const result = await asyncFunction();
+                    return result;
+                } finally {
+                    this.hide();
+                }
+            }
+        };
+
+        // Toggle sidebar para móviles
+        document.getElementById('toggle-sidebar').addEventListener('click', function() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('mobile-open');
+        });
+
+        // Cerrar sidebar al hacer clic fuera de él en móviles
+        document.addEventListener('click', function(event) {
+            const sidebar = document.querySelector('.sidebar');
+            const toggleButton = document.getElementById('toggle-sidebar');
+            
+            if (window.innerWidth < 768 && 
+                !sidebar.contains(event.target) && 
+                !toggleButton.contains(event.target) &&
+                sidebar.classList.contains('mobile-open')) {
+                sidebar.classList.remove('mobile-open');
+            }
+        });
+
+        // Manejar logout con confirmación
+        document.getElementById('logout-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                globalLoader.show('Cerrando sesión...');
+                window.location.href = this.href;
+            }
+        });
+
+        // Actualizar hora en tiempo real
+        function actualizarHora() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            document.getElementById('sidebar-time').textContent = timeString;
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mostrar loader inmediatamente al cargar la página
+            globalLoader.show();
+            
+            // Ocultar loader cuando la página esté completamente cargada
+            window.addEventListener('load', function() {
+                // Pequeño delay para que se aprecie la animación
+                setTimeout(() => {
+                    globalLoader.hide();
+                }, 500);
+            });
+
+            // También ocultar si hay un error en la carga
+            window.addEventListener('error', function() {
+                globalLoader.hide();
+            });
+
+            setInterval(actualizarHora, 60000);
+        });
+
+        // Interceptar navegación para mostrar loader
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a');
+            if (link && link.href && !link.href.includes('javascript:') && 
+                !link.getAttribute('data-bs-toggle') && 
+                link.target !== '_blank' &&
+                !link.href.startsWith('#')) {
+                
+                // Verificar si es una ruta interna (mismo dominio)
+                if (link.hostname === window.location.hostname) {
+                    globalLoader.show('Cargando página...');
+                }
+            }
+        });
+
+        // Función global para mostrar loading en operaciones específicas
+        window.showLoading = function(message) {
+            globalLoader.show(message);
+        };
+
+        window.hideLoading = function() {
+            globalLoader.hide();
+        };
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

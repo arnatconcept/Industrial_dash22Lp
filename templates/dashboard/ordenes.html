@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Órdenes de Trabajo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">🛠 Dashboard Órdenes de Trabajo</h1>
+    <div class="d-flex align-items-center">
+      <span class="badge bg-warning fs-6 p-2 me-3">
+        <i class="fas fa-clock me-1"></i><span id="lastUpdate">Actualizado ahora</span>
+      </span>
+      <button class="btn btn-sm btn-outline-primary" onclick="init()">
+        <i class="fas fa-sync-alt"></i> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de filtros mejorada -->
+  <div class="card filter-bar mb-4">
+    <div class="card-body py-3">
+      <form class="d-flex align-items-center flex-wrap gap-2" id="searchFilterForm" onsubmit="return false;">
+        <div class="input-group input-group-sm" style="width: 250px;">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+          <input class="form-control" type="search" placeholder="Buscar órdenes..." id="searchInput">
+        </div>
+        <select class="form-select form-select-sm" id="filterTipo" style="width: 180px;">
+          <option value="">Todos los tipos</option>
+          <option value="preventivo">Preventivo</option>
+          <option value="correctivo">Correctivo</option>
+          <option value="predictivo">Predictivo</option>
+          <option value="calibracion">Calibración</option>
+        </select>
+        <select class="form-select form-select-sm" id="filterEstado" style="width: 180px;">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="asignada">Asignada</option>
+          <option value="en_proceso">En Proceso</option>
+          <option value="completada">Completada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+        <select class="form-select form-select-sm" id="filterPrioridad" style="width: 180px;">
+          <option value="">Todas las prioridades</option>
+          <option value="baja">Baja</option>
+          <option value="media">Media</option>
+          <option value="alta">Alta</option>
+          <option value="critica">Crítica</option>
+        </select>
+        <button class="btn btn-sm btn-primary" type="button" onclick="aplicarBusqueda()">
+          <i class="fas fa-filter me-1"></i> Filtrar
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="limpiarFiltros()">
+          <i class="fas fa-times me-1"></i> Limpiar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- KPIs por estado -->
+  <div class="row row-cols-1 row-cols-md-5 g-3 mb-4" id="kpi-container"></div>
+
+  <!-- Layout horizontal: Lista + Gráficos -->
+  <div class="content-row">
+    <!-- Columna de lista -->
+    <div class="list-column">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-list me-2"></i>Lista de Órdenes
+            <span class="badge bg-primary ms-2" id="contadorOrdenes">0</span>
+          </h6>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" onclick="exportarOrdenes()" title="Exportar">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="enhanced-list" id="listaOrdenesContainer">
+            <!-- La lista se cargará aquí dinámicamente -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+     <!-- Columna de gráficos - MODIFICADO: 3 columnas -->
+    <div class="charts-column">
+      <div class="charts-grid">
+        <!-- Gráfico de distribución por tipo -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Por Tipo</h6>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chartTipo"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico de distribución por estado -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Por Estado</h6>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chartEstado"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico de distribución por prioridad -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Por Prioridad</h6>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chartPrioridad"></canvas>
+            </div>
+          </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const API_BASE = "/api";
+  let token = localStorage.getItem("access_token");
+  let ordenesData = [];
+  let chartInstances = {};
+
+  function logout(){
+    localStorage.clear();
+    window.location.href = "/login.html";
+  }
+
+  async function fetchAPI(endpoint) {
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if(response.status === 401){ logout(); }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      return [];
+    }
+  }
+
+  const estadoConfig = {
+    'pendiente': { class: 'bg-warning text-dark', icon: 'fas fa-clock', label: 'Pendiente' },
+    'asignada': { class: 'bg-primary text-white', icon: 'fas fa-user-check', label: 'Asignada' },
+    'en_proceso': { class: 'bg-info text-white', icon: 'fas fa-cog', label: 'En Proceso' },
+    'completada': { class: 'bg-success text-white', icon: 'fas fa-check-circle', label: 'Completada' },
+    'cancelada': { class: 'bg-danger text-white', icon: 'fas fa-times-circle', label: 'Cancelada' }
+  };
+
+  const prioridadConfig = {
+    'baja': { class: 'bg-secondary', label: 'Baja' },
+    'media': { class: 'bg-warning text-dark', label: 'Media' },
+    'alta': { class: 'bg-danger', label: 'Alta' },
+    'critica': { class: 'bg-dark', label: 'Crítica' }
+  };
+
+  function actualizarTimestamp() {
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent = 
+      `Actualizado: ${now.toLocaleTimeString()}`;
+  }
+
+  async function loadOrdenes() {
+    try {
+      showLoading('Cargando órdenes...');
+      const data = await fetchAPI("/ordenes/");
+      ordenesData = data;
+
+      // KPIs por estado
+      renderKPIs(data);
+      
+      // Lista de órdenes
+      renderListaOrdenes(data);
+      
+      // Gráficos
+      renderCharts(data);
+      
+      actualizarTimestamp();
+      
+      return data.length;
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function renderKPIs(data) {
+    const kpiContainer = document.getElementById("kpi-container");
+    const estados = ["pendiente", "asignada", "en_proceso", "completada", "cancelada"];
+    
+    kpiContainer.innerHTML = '';
+
+    estados.forEach(est => {
+      const count = data.filter(o => o.estado === est).length;
+      const config = estadoConfig[est];
+      
+      const div = document.createElement('div');
+      div.classList.add('col');
+      div.innerHTML = `
+        <div class="card kpi-card h-100 border-0 shadow-sm">
+          <div class="card-body text-center p-3">
+            <div class="icon-wrapper ${config.class.replace('bg-', 'bg-opacity-10 ')} rounded-circle mx-auto mb-2 p-2">
+              <i class="${config.icon} fs-4 ${config.class.split(' ')[0]}"></i>
+            </div>
+            <h4 class="mb-1 fw-bold">${count}</h4>
+            <small class="text-muted">${config.label}</small>
+          </div>
+        </div>
+      `;
+      kpiContainer.appendChild(div);
+    });
+  }
+
+  function renderListaOrdenes(lista){
+    const container = document.getElementById("listaOrdenesContainer");
+    const contador = document.getElementById("contadorOrdenes");
+    
+    contador.textContent = lista.length;
+    container.innerHTML = '';
+
+    if (lista.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-inbox fa-3x mb-3"></i>
+          <p class="mb-0">No se encontraron órdenes</p>
+          <small>Intenta ajustar los filtros de búsqueda</small>
+        </div>
+      `;
+      return;
+    }
+
+    lista.forEach(item => {
+      const estado = estadoConfig[item.estado];
+      const prioridad = prioridadConfig[item.prioridad];
+      
+      let equipos = item.equipos?.map(e => e.nombre).join(", ") || "-";
+      let motores = item.motores?.map(m => m.codigo).join(", ") || "-";
+      let variadores = item.variadores?.map(v => v.codigo).join(", ") || "-";
+
+      const div = document.createElement('div');
+      div.classList.add('list-item');
+      div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div class="flex-grow-1">
+            <h6 class="mb-1 fw-bold">${item.titulo}</h6>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              <span class="badge ${estado.class}">
+                <i class="${estado.icon} me-1"></i>${estado.label}
+              </span>
+              <span class="badge ${prioridad.class}">
+                ${prioridad.label}
+              </span>
+              <span class="badge bg-light text-dark border">
+                ${item.tipo}
+              </span>
+            </div>
+          </div>
+          <div class="text-end">
+            <small class="text-muted">#${item.id}</small>
+          </div>
+        </div>
+        
+        <div class="row small text-muted mb-2">
+          <div class="col-6">
+            <i class="fas fa-user me-1"></i>
+            <strong>Asignado:</strong> ${item.operario_asignado?.username || 'No asignado'}
+          </div>
+          <div class="col-6">
+            <i class="fas fa-clock me-1"></i>
+            <strong>Tiempo:</strong> ${item.tiempo_estimado || '0'} min
+          </div>
+        </div>
+        
+        <div class="small">
+          <div class="mb-1">
+            <strong>Equipos:</strong> ${equipos}
+          </div>
+          <div class="mb-1">
+            <strong>Motores:</strong> ${motores}
+          </div>
+          <div class="mb-1">
+            <strong>Variadores:</strong> ${variadores}
+          </div>
+          ${item.descripcion ? `<div class="mt-2"><strong>Descripción:</strong> ${item.descripcion}</div>` : ''}
+        </div>
+        
+        <div class="mt-3 pt-2 border-top">
+          <button class="btn btn-sm btn-outline-primary" onclick="verDetalleOrden(${item.id})">
+            <i class="fas fa-eye me-1"></i>Ver Detalles
+          </button>
+          <button class="btn btn-sm btn-outline-warning ms-1" onclick="editarOrden(${item.id})">
+            <i class="fas fa-edit me-1"></i>Editar
+          </button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function renderCharts(data) {
+    renderChartTipo(data);
+    renderChartEstado(data);
+    renderChartPrioridad(data);
+  }
+
+  function renderChartTipo(data) {
+    const ctx = document.getElementById('chartTipo').getContext('2d');
+    const tipos = ["preventivo", "correctivo", "predictivo", "calibracion"];
+    const valores = tipos.map(t => data.filter(o => o.tipo === t).length);
+
+    if (chartInstances['tipo']) {
+      chartInstances['tipo'].destroy();
+    }
+
+    chartInstances['tipo'] = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: tipos.map(t => t.charAt(0).toUpperCase() + t.slice(1)),
+        datasets: [{
+          data: valores,
+          backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e'],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  function renderChartEstado(data) {
+    const ctx = document.getElementById('chartEstado').getContext('2d');
+    const estados = ["pendiente", "asignada", "en_proceso", "completada", "cancelada"];
+    const valores = estados.map(e => data.filter(o => o.estado === e).length);
+
+    if (chartInstances['estado']) {
+      chartInstances['estado'].destroy();
+    }
+
+    chartInstances['estado'] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: estados.map(e => estadoConfig[e].label),
+        datasets: [{
+          label: 'Cantidad',
+          data: valores,
+          backgroundColor: ['#f6c23e', '#4e73df', '#36b9cc', '#1cc88a', '#e74a3b'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderChartPrioridad(data) {
+    const ctx = document.getElementById('chartPrioridad').getContext('2d');
+    const prioridades = ["baja", "media", "alta", "critica"];
+    const valores = prioridades.map(p => data.filter(o => o.prioridad === p).length);
+
+    if (chartInstances['prioridad']) {
+      chartInstances['prioridad'].destroy();
+    }
+
+    chartInstances['prioridad'] = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: prioridades.map(p => prioridadConfig[p].label),
+        datasets: [{
+          data: valores,
+          backgroundColor: ['#6c757d', '#f6c23e', '#e74a3b', '#5a5c69'],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          }
+        }
+      }
+    });
+  }
+
+  function aplicarBusqueda(){
+    const texto = document.getElementById('searchInput').value.toLowerCase();
+    const tipo = document.getElementById('filterTipo').value;
+    const estado = document.getElementById('filterEstado').value;
+    const prioridad = document.getElementById('filterPrioridad').value;
+
+    const filtrado = ordenesData.filter(o => {
+      return (!texto || 
+             o.titulo.toLowerCase().includes(texto) || 
+             (o.descripcion && o.descripcion.toLowerCase().includes(texto))) &&
+             (!tipo || o.tipo === tipo) &&
+             (!estado || o.estado === estado) &&
+             (!prioridad || o.prioridad === prioridad);
+    });
+
+    renderListaOrdenes(filtrado);
+  }
+
+  function limpiarFiltros(){
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterTipo').value = '';
+    document.getElementById('filterEstado').value = '';
+    document.getElementById('filterPrioridad').value = '';
+    
+    renderListaOrdenes(ordenesData);
+  }
+
+  // Funciones para futura implementación
+  function verDetalleOrden(id) {
+    const orden = ordenesData.find(o => o.id === id);
+    if (orden) {
+      alert(`Detalles de orden #${id}: ${orden.titulo}`);
+      // Implementar modal de detalles aquí
+    }
+  }
+
+  function editarOrden(id) {
+    // Implementar edición de orden
+    alert(`Editar orden #${id}`);
+  }
+
+  function exportarOrdenes() {
+    // Implementar exportación de datos
+    alert('Exportar órdenes');
+  }
+
+  // Inicialización
+  async function init() {
+    await loadOrdenes();
+  }
+
+  // Búsqueda en tiempo real
+  document.addEventListener('DOMContentLoaded', function() {
+    init();
+    
+    // Auto-actualización cada 2 minutos
+    setInterval(init, 120000);
+    
+    // Búsqueda en tiempo real
+    document.getElementById('searchInput').addEventListener('input', aplicarBusqueda);
+  });
+</script>
+
+<style>
+  .icon-wrapper {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .list-item {
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .list-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: var(--secondary-color);
+  }
+
+  .list-item:last-child {
+    border-bottom: none;
+  }
+
+  .enhanced-list {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  /* NUEVO: Grid para 3 columnas de gráficos */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    height: 100%;
+  }
+
+  .chart-card {
+    height: 100%;
+    margin-bottom: 0;
+  }
+
+  .chart-container {
+    height: 200px;
+    position: relative;
+  }
+
+  @media (max-width: 768px) {
+    .enhanced-list {
+      max-height: 400px;
+    }
+  }
+</style>
+{% endblock %}

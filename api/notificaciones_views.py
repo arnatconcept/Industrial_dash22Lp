@@ -22,6 +22,20 @@ class NotificacionesViewSet(viewsets.ReadOnlyModelViewSet):
         notificaciones = self.get_queryset().filter(leida=False)
         serializer = self.get_serializer(notificaciones, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def conteo_no_leidas(self, request):
+        """Retorna el conteo de notificaciones no leídas para el usuario actual"""
+        conteo = NotificacionApp.objects.filter(
+            usuario_id=request.user.id,
+            leida=False
+        ).count()
+        
+        return Response({
+            'conteo': conteo,
+            'usuario_id': request.user.id,
+            'usuario_nombre': request.user.get_full_name() or request.user.username
+        })
 
     @action(detail=True, methods=['post'])
     def marcar_leida(self, request, pk=None):

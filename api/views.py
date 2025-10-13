@@ -3,7 +3,7 @@ import logging
 import re
 from .filters import OrdenMantenimientoFilter
 
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters, mixins
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser
@@ -12,7 +12,7 @@ from .models import *
 from .serializers import *
 from .permissions import *
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -25,12 +25,133 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import AllowAny
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404
+from rest_framework_simplejwt.tokens import AccessToken
+from django.db.models import Sum, Count, F
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_info(request):
+    user = request.user
+    return Response({
+        'username': user.username,
+        'email': user.email,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'role': getattr(user, 'role', 'Usuario') if hasattr(user, 'role') else 'Usuario'
+    })
+
+@login_required
+def dashboard_index(request):
+    return render(request, "dashboard/index.html")
+
+
+
+def produccion_dashboard(request):
+    lineas = LineaProduccion.objects.all()
+    return render(request, "dashboard/produccion.html", {
+        'lineas': lineas
+    })
+    return render(request, "dashboard/produccion.html")
+
+def reportes_dashboard(request):
+    """Vista para el dashboard de reportes"""
+    return render(request, "dashboard/reportes.html")
+
+
+def mantenimiento_dashboard(request):
+    return render(request, "dashboard/mantenimiento.html")
+
+def inventario_dashboard(request):
+    return render(request, "dashboard/inventario.html")
+
+def ordenes_dashboard(request):
+    return render(request, "dashboard/ordenes.html")
+
+def dashboard_fallas(request):
+    return render(request, "dashboard/fallas.html")
+
+def alertas_dashboard(request):
+    """Vista para el dashboard de alertas"""
+    return render(request, "dashboard/alertas.html")
+
+
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def node_red_auth(request):
+    """Autenticación simple para Node-RED"""
+    username = request.data.get('username')
+    password = request.data.get('password')
+    
+    user = authenticate(username=username, password=password)
+    if user:
+        token = AccessToken.for_user(user)
+        return Response({
+            'access_token': str(token),
+            'user_id': user.id,
+            'username': user.username
+        })
+    
+    return Response({'error': 'Credenciales inválidas'}, status=401)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class SimpleLoginView(APIView):
+    """
+    Vista de login simple que evita problemas de CSRF
+    """
+    authentication_classes = []
+    permission_classes = []
+    
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        # Debug: ver qué datos llegan
+        print(f"Login attempt - Username: {username}")
+        print(f"Request data: {request.data}")
+        print(f"Request content type: {request.content_type}")
+        
+        if not username or not password:
+            return Response(
+                {'error': 'Username and password required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Autenticar usuario
+        user = authenticate(username=username, password=password)
+        
+        if user is not None and user.is_active:
+            # Generar tokens JWT
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                'success': True,
+                'message': 'Login exitoso',
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                }
+            })
+        else:
+            return Response({
+                'success': False,
+                'message': 'Credenciales inválidas o usuario inactivo'
+            }, status=status.HTTP_401_UNAUTHORIZED)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -543,36 +664,41 @@ class InspeccionReporteView(APIView):
         return Response(report_data)
     
 class DashboardSupervisorView(APIView):
-    permission_classes = [IsAuthenticated, IsSupervisorOrAdmin]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Count, Avg, F
-        from datetime import datetime, timedelta
-
         days = int(request.query_params.get('days', 30))
-        end_date = timezone.now()
+        end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days)
 
-        # 1️⃣ Alertas activas
-        alertas = Evento.objects.filter(
-        fecha__range=(start_date, end_date)
-        ).count()
+        # 1️⃣ Unidades producidas
+        unidades_producidas = ProduccionTurno.objects.filter(
+            fecha__range=(start_date, end_date)
+        ).aggregate(total=Sum('cantidad'))['total'] or 0
 
-        # 2️⃣ % variables fuera de rango
-        total_resultados = ResultadoInspeccion.objects.filter(
+        # 2️⃣ Eficiencia global
+        total_planificado = ProduccionTurno.objects.filter(
+            fecha__range=(start_date, end_date),
+            meta_produccion__isnull=False
+        ).aggregate(total=Sum('meta_produccion'))['total'] or 0
+
+        eficiencia_global = round((unidades_producidas / total_planificado) * 100, 2) if total_planificado else 0
+
+        # 3️⃣ Tiempo paradas
+        tiempo_paradas = ParadaTurno.objects.filter(
+            fecha__range=(start_date, end_date)
+        ).aggregate(total=Sum('duracion_minutos'))['total'] or 0
+
+        # 4️⃣ Fallas activas
+        fallas_activas = FallaTurno.objects.filter(
             fecha__range=(start_date, end_date)
         ).count()
-        fuera_rango = ResultadoInspeccion.objects.filter(
-            fecha__range=(start_date, end_date)
-        ).annotate(
-            desvio=Abs(F('valor_medido') - F('variable__valor_referencia'))
-        ).filter(desvio__gt=F('variable__tolerancia')).count()
-
-        porcentaje_fuera = (fuera_rango / total_resultados) * 100 if total_resultados else 0
 
         return Response({
-            'alertas': alertas,
-            'porcentaje_fuera_rango': porcentaje_fuera
+            'unidades_producidas': unidades_producidas,
+            'eficiencia_global': eficiencia_global,
+            'tiempo_paradas': tiempo_paradas,
+            'fallas_activas': fallas_activas
         })
     
 class DashboardSupervisorVariablesTopView(APIView):
@@ -660,3 +786,612 @@ class KpiInspeccionesView(APIView):
             "tiempo_promedio": tiempo_promedio
         }
         return Response(data)
+
+class ReunionDiariaViewSet(viewsets.ModelViewSet):
+    queryset = ReunionDiaria.objects.all().order_by('-fecha')
+    serializer_class = ReunionDiariaSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['estado', 'creada_por']
+    search_fields = ['notas', 'motivo_anulacion']
+    
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ReunionDiariaDetailSerializer
+        return ReunionDiariaSerializer
+    
+    def perform_create(self, serializer):
+        serializer.save(creada_por=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def cambiar_estado(self, request, pk=None):
+        reunion = self.get_object()
+        nuevo_estado = request.data.get('estado')
+        motivo_anulacion = request.data.get('motivo_anulacion', None)
+        
+        if nuevo_estado not in dict(ReunionDiaria.ESTADO_CHOICES):
+            return Response(
+                {'error': 'Estado no válido'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        reunion.estado = nuevo_estado
+        if nuevo_estado == 'anulada':
+            reunion.motivo_anulacion = motivo_anulacion
+        reunion.save()
+        
+        return Response(ReunionDiariaSerializer(reunion).data)
+    
+    @action(detail=False, methods=['get'])
+    def proximas_reuniones(self, request):
+        from datetime import date, timedelta
+        hoy = date.today()
+        proxima_semana = hoy + timedelta(days=7)
+        
+        reuniones = ReunionDiaria.objects.filter(
+            fecha__gte=hoy, 
+            fecha__lte=proxima_semana
+        ).order_by('fecha')
+        
+        page = self.paginate_queryset(reuniones)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(reuniones, many=True)
+        return Response(serializer.data)
+
+
+class IncidenciaReunionViewSet(viewsets.ModelViewSet):
+    queryset = IncidenciaReunion.objects.all().order_by('-creada_en')
+    serializer_class = IncidenciaReunionSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['tipo', 'prioridad', 'resuelta', 'reunion']
+    search_fields = ['descripcion']
+    
+    def perform_create(self, serializer):
+        serializer.save(reportada_por=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def marcar_resuelta(self, request, pk=None):
+        incidencia = self.get_object()
+        incidencia.resuelta = True
+        incidencia.save()
+        
+        return Response(IncidenciaReunionSerializer(incidencia).data)
+    
+    @action(detail=False, methods=['get'])
+    def pendientes(self, request):
+        incidencias = IncidenciaReunion.objects.filter(resuelta=False).order_by('-creada_en')
+        
+        page = self.paginate_queryset(incidencias)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(incidencias, many=True)
+        return Response(serializer.data)
+
+
+class PlanificacionReunionViewSet(viewsets.ModelViewSet):
+    queryset = PlanificacionReunion.objects.all().order_by('-fecha_programada')
+    serializer_class = PlanificacionReunionSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['reunion', 'responsable']
+    search_fields = ['descripcion']
+    
+    @action(detail=False, methods=['get'])
+    def proximas_planificaciones(self, request):
+        from datetime import date, timedelta
+        hoy = date.today()
+        proxima_semana = hoy + timedelta(days=7)
+        
+        planificaciones = PlanificacionReunion.objects.filter(
+            fecha_programada__gte=hoy, 
+            fecha_programada__lte=proxima_semana
+        ).order_by('fecha_programada')
+        
+        page = self.paginate_queryset(planificaciones)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(planificaciones, many=True)
+        return Response(serializer.data)
+
+
+class AccionReunionViewSet(viewsets.ModelViewSet):
+    queryset = AccionReunion.objects.all().order_by('-fecha_limite')
+    serializer_class = AccionReunionSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['incidencia', 'completada', 'asignada_a']
+    search_fields = ['descripcion']
+    
+    @action(detail=True, methods=['post'])
+    def marcar_completada(self, request, pk=None):
+        accion = self.get_object()
+        accion.completada = True
+        accion.save()
+        
+        return Response(AccionReunionSerializer(accion).data)
+    
+    @action(detail=False, methods=['get'])
+    def mis_acciones(self, request):
+        acciones = AccionReunion.objects.filter(
+            asignada_a=request.user, 
+            completada=False
+        ).order_by('fecha_limite')
+        
+        page = self.paginate_queryset(acciones)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(acciones, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def vencidas(self, request):
+        from datetime import date
+        hoy = date.today()
+        
+        acciones = AccionReunion.objects.filter(
+            fecha_limite__lt=hoy, 
+            completada=False
+        ).order_by('fecha_limite')
+        
+        page = self.paginate_queryset(acciones)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(acciones, many=True)
+        return Response(serializer.data)
+
+class TurnoViewSet(viewsets.ModelViewSet):
+    queryset = Turno.objects.all()
+    serializer_class = TurnoSerializer
+    permission_classes = [IsAuthenticated]
+
+class ProduccionViewSet(viewsets.ModelViewSet):
+    queryset = Produccion.objects.select_related('turno', 'linea', 'supervisor').all()
+    serializer_class = ProduccionSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['fecha', 'linea', 'turno', 'supervisor', 'producto']
+    search_fields = ['producto']  
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filtros específicos para el dashboard
+        fecha_desde = self.request.query_params.get('fecha_desde')
+        fecha_hasta = self.request.query_params.get('fecha_hasta')
+        linea_id = self.request.query_params.get('linea')  # Changed from 'linea' to 'linea_id' for clarity
+        turno_id = self.request.query_params.get('turno')  # Changed from 'turno' to 'turno_id' for clarity
+        supervisor = self.request.query_params.get('supervisor')
+        producto = self.request.query_params.get('producto')
+        busqueda = self.request.query_params.get('busqueda')
+        
+        if fecha_desde and fecha_hasta:
+            queryset = queryset.filter(fecha__range=[fecha_desde, fecha_hasta])
+        elif fecha_desde:
+            queryset = queryset.filter(fecha__gte=fecha_desde)
+        elif fecha_hasta:
+            queryset = queryset.filter(fecha__lte=fecha_hasta)
+
+        # FIX: Use the string IDs directly, don't try to access .id on strings
+        if linea_id:
+            queryset = queryset.filter(linea_id=linea_id)  # Use linea_id directly
+        if turno_id:
+            queryset = queryset.filter(turno_id=turno_id)  # Use turno_id directly
+        if supervisor:
+            queryset = queryset.filter(supervisor__username__icontains=supervisor)
+        if producto:
+            queryset = queryset.filter(producto__icontains=producto)
+        if busqueda:
+            queryset = queryset.filter(
+                Q(producto__icontains=busqueda) |
+                Q(supervisor__username__icontains=busqueda)
+            )
+            
+        return queryset.order_by('-fecha', '-fecha_creacion')
+
+
+    def create(self, request, *args, **kwargs):
+        print("=== INCOMING REQUEST DATA ===")
+        print(f"Data: {request.data}")
+        print(f"Content-Type: {request.content_type}")
+        print("=============================")
+        
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print("=== SERIALIZER ERRORS ===")
+            print(serializer.errors)
+            print("=========================")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            print(f"=== ERROR IN PERFORM_CREATE: {str(e)} ===")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def perform_create(self, serializer):
+        serializer.save()
+
+
+
+class ProduccionTurnoViewSet(viewsets.ModelViewSet):
+    queryset = ProduccionTurno.objects.all()
+    serializer_class = ProduccionTurnoSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = ProduccionTurno.objects.all()
+        fecha = self.request.query_params.get('fecha', None)
+        linea_id = self.request.query_params.get('linea_id', None)
+        turno_id = self.request.query_params.get('turno_id', None)
+        
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if linea_id:
+            queryset = queryset.filter(linea_id=linea_id)
+        if turno_id:
+            queryset = queryset.filter(turno_id=turno_id)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        serializer.save(creado_por=self.request.user)
+
+# views.py - Modificar FallaTurnoViewSet
+class FallaTurnoViewSet(viewsets.ModelViewSet):
+    queryset = FallaTurno.objects.all()
+    serializer_class = FallaTurnoSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = FallaTurno.objects.all()
+        
+        # Obtener parámetros de filtro
+        fecha_desde = self.request.query_params.get('fecha_desde', None)
+        fecha_hasta = self.request.query_params.get('fecha_hasta', None)
+        fecha = self.request.query_params.get('fecha', None)  # Mantener compatibilidad
+        linea_id = self.request.query_params.get('linea_id', None)
+        tipo = self.request.query_params.get('tipo', None)
+        gravedad = self.request.query_params.get('gravedad', None)
+        turno_id = self.request.query_params.get('turno_id', None)
+        busqueda = self.request.query_params.get('busqueda', None)
+        
+        # Filtro por rango de fechas (prioridad)
+        if fecha_desde and fecha_hasta:
+            queryset = queryset.filter(fecha__range=[fecha_desde, fecha_hasta])
+        elif fecha_desde:
+            queryset = queryset.filter(fecha__gte=fecha_desde)
+        elif fecha_hasta:
+            queryset = queryset.filter(fecha__lte=fecha_hasta)
+        # Mantener compatibilidad con filtro de fecha única
+        elif fecha:
+            queryset = queryset.filter(fecha=fecha)
+            
+        # Otros filtros
+        if linea_id:
+            queryset = queryset.filter(linea_id=linea_id)
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        if gravedad:
+            queryset = queryset.filter(gravedad=gravedad)
+        if turno_id:
+            queryset = queryset.filter(turno_id=turno_id)
+            
+        # Búsqueda en descripción y acción correctiva
+        if busqueda:
+            queryset = queryset.filter(
+                Q(descripcion__icontains=busqueda) | 
+                Q(accion_correctiva__icontains=busqueda) |
+                Q(equipo__nombre__icontains=busqueda)
+            )
+            
+        return queryset.select_related('linea', 'turno', 'equipo').order_by('-fecha', '-fecha_creacion')
+    
+    def perform_create(self, serializer):
+        serializer.save(creado_por=self.request.user)
+
+class ParadaTurnoViewSet(viewsets.ModelViewSet):
+    queryset = ParadaTurno.objects.all()
+    serializer_class = ParadaTurnoSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = ParadaTurno.objects.all()
+        fecha = self.request.query_params.get('fecha', None)
+        linea_id = self.request.query_params.get('linea_id', None)
+        motivo = self.request.query_params.get('motivo', None)
+        
+        if fecha:
+            queryset = queryset.filter(fecha=fecha)
+        if linea_id:
+            queryset = queryset.filter(linea_id=linea_id)
+        if motivo:
+            queryset = queryset.filter(motivo=motivo)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        serializer.save(creado_por=self.request.user)
+
+class NodeRedLogViewSet(mixins.ListModelMixin,
+                       mixins.RetrieveModelMixin,
+                       viewsets.GenericViewSet):
+    queryset = NodeRedLog.objects.all()
+    serializer_class = NodeRedLogSerializer
+    permission_classes = [IsAuthenticated]
+
+# Endpoints para recepción de datos desde Node-RED
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def produccion(request):
+    """
+    Endpoint para recibir datos de producción desde Node-RED
+    """
+    serializer = ProduccionSerializer(data=request.data)
+
+    if serializer.is_valid():
+        data = serializer.validated_data
+        
+        try:
+            # Verificar que existen los objetos relacionados
+            turno = get_object_or_404(Turno, id=data['turno_id'])
+            linea = get_object_or_404(LineaProduccion, id=data['linea_id'])
+            
+            # Crear o actualizar el registro de producción
+            produccion, created = Produccion.objects.update_or_create(
+                fecha=data['fecha'],
+                turno=turno,
+                linea=linea,
+                defaults={
+                    'producto': data['producto'],
+                    'bandejas': data.get('bandejas', 0),
+                    'fabricacion_toneladas': data.get('fabricacion_toneladas', 0.0),
+                    'meta_produccion': data.get('meta_produccion'),
+                    'fuente_dato': 'node_red'
+                }
+            )
+            
+            # Registrar el log
+            NodeRedLog.objects.create(
+                tipo_dato='produccion',
+                payload=request.data,
+                estado='exito',
+                mensaje='Registro creado' if created else 'Registro actualizado',
+                registros_afectados=1
+            )
+            
+            return Response({'status': 'success', 'created': created}, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            # Registrar error en el log
+            NodeRedLog.objects.create(
+                tipo_dato='produccion',
+                payload=request.data,
+                estado='error',
+                mensaje=str(e),
+                registros_afectados=0
+            )
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    else:
+        # Registrar error de validación
+        NodeRedLog.objects.create(
+            tipo_dato='produccion',
+            payload=request.data,
+            estado='error',
+            mensaje=serializer.errors,
+            registros_afectados=0
+        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def node_red_produccion(request):
+    """
+    Endpoint para recibir datos de producción desde Node-RED
+    """
+    serializer = NodeRedProduccionSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        data = serializer.validated_data
+        
+        try:
+            # Verificar que existen los objetos relacionados
+            turno = get_object_or_404(Turno, id=data['turno_id'])
+            linea = get_object_or_404(LineaProduccion, id=data['linea_id'])
+            
+            # Crear o actualizar el registro de producción
+            produccion, created = ProduccionTurno.objects.update_or_create(
+                fecha=data['fecha'],
+                turno=turno,
+                linea=linea,
+                defaults={
+                    'cantidad': data['cantidad'],
+                    'unidad': data.get('unidad', 'unidades'),
+                    'meta_produccion': data.get('meta_produccion'),
+                    'fuente_dato': 'node_red'
+                }
+            )
+            
+            # Registrar el log
+            NodeRedLog.objects.create(
+                tipo_dato='produccion',
+                payload=request.data,
+                estado='exito',
+                mensaje='Registro creado' if created else 'Registro actualizado',
+                registros_afectados=1
+            )
+            
+            return Response({'status': 'success', 'created': created}, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            # Registrar error en el log
+            NodeRedLog.objects.create(
+                tipo_dato='produccion',
+                payload=request.data,
+                estado='error',
+                mensaje=str(e),
+                registros_afectados=0
+            )
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    else:
+        # Registrar error de validación
+        NodeRedLog.objects.create(
+            tipo_dato='produccion',
+            payload=request.data,
+            estado='error',
+            mensaje=serializer.errors,
+            registros_afectados=0
+        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def node_red_falla(request):
+    """
+    Endpoint para recibir datos de fallas desde Node-RED
+    """
+    serializer = NodeRedFallaSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        data = serializer.validated_data
+        
+        try:
+            # Verificar que existen los objetos relacionados
+            turno = get_object_or_404(Turno, id=data['turno_id'])
+            linea = get_object_or_404(LineaProduccion, id=data['linea_id'])
+            
+            # Obtener equipo si se proporciona
+            equipo = None
+            if data.get('equipo_id'):
+                equipo = get_object_or_404(Equipo, id=data['equipo_id'])
+            
+            # Crear el registro de falla
+            falla = FallaTurno.objects.create(
+                fecha=data['fecha'],
+                turno=turno,
+                linea=linea,
+                equipo=equipo,
+                tipo=data['tipo'],
+                gravedad=data.get('gravedad', 'moderada'),
+                cantidad=data['cantidad'],
+                duracion_minutos=data.get('duracion_minutos', 0),
+                descripcion=data.get('descripcion', ''),
+                accion_correctiva=data.get('accion_correctiva', ''),
+                fuente_dato='node_red'
+            )
+            
+            # Registrar el log
+            NodeRedLog.objects.create(
+                tipo_dato='falla',
+                payload=request.data,
+                estado='exito',
+                mensaje='Registro creado exitosamente',
+                registros_afectados=1
+            )
+            
+            return Response({'status': 'success', 'id': falla.id}, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            # Registrar error en el log
+            NodeRedLog.objects.create(
+                tipo_dato='falla',
+                payload=request.data,
+                estado='error',
+                mensaje=str(e),
+                registros_afectados=0
+            )
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    else:
+        # Registrar error de validación
+        NodeRedLog.objects.create(
+            tipo_dato='falla',
+            payload=request.data,
+            estado='error',
+            mensaje=serializer.errors,
+            registros_afectados=0
+        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def node_red_parada(request):
+    """
+    Endpoint para recibir datos de paradas desde Node-RED
+    """
+    serializer = NodeRedParadaSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        data = serializer.validated_data
+        
+        try:
+            # Verificar que existen los objetos relacionados
+            turno = get_object_or_404(Turno, id=data['turno_id'])
+            linea = get_object_or_404(LineaProduccion, id=data['linea_id'])
+            
+            # Obtener equipo si se proporciona
+            equipo = None
+            if data.get('equipo_id'):
+                equipo = get_object_or_404(Equipo, id=data['equipo_id'])
+            
+            # Crear el registro de parada
+            parada = ParadaTurno.objects.create(
+                fecha=data['fecha'],
+                turno=turno,
+                linea=linea,
+                equipo=equipo,
+                motivo=data['motivo'],
+                tipo=data.get('tipo', 'no_programada'),
+                duracion_minutos=data['duracion_minutos'],
+                descripcion=data.get('descripcion', ''),
+                fuente_dato='node_red'
+            )
+            
+            # Registrar el log
+            NodeRedLog.objects.create(
+                tipo_dato='parada',
+                payload=request.data,
+                estado='exito',
+                mensaje='Registro creado exitosamente',
+                registros_afectados=1
+            )
+            
+            return Response({'status': 'success', 'id': parada.id}, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            # Registrar error en el log
+            NodeRedLog.objects.create(
+                tipo_dato='parada',
+                payload=request.data,
+                estado='error',
+                mensaje=str(e),
+                registros_afectados=0
+            )
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    else:
+        # Registrar error de validación
+        NodeRedLog.objects.create(
+            tipo_dato='parada',
+            payload=request.data,
+            estado='error',
+            mensaje=serializer.errors,
+            registros_afectados=0
+        )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -9,6 +9,7 @@ from whitenoise.storage import CompressedManifestStaticFilesStorage
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -25,6 +26,8 @@ ALLOWED_HOSTS = ['*']  # Temporal para pruebas, luego reemplaza con:
 # Application definition
 
 INSTALLED_APPS = [
+
+    'api',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -34,10 +37,12 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'api',
+    
     'django_filters',
     'drf_yasg',
     'django_celery_beat',
+    'charts',
+    
 ]
 
 MIDDLEWARE = [
@@ -48,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',  
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'api.middleware.DisableCSRFForAuth',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -171,7 +177,15 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    )
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    ),
+    'DEFAULT_PARSER_CLASSES': (
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ),
 }
 
 # Simple JWT Configuration
@@ -198,7 +212,7 @@ SIMPLE_JWT = {
 
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
-    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    'TOKEN_USER_CLASS': 'api.models.User',
 
     'JTI_CLAIM': 'jti',
 
@@ -212,7 +226,18 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # ==================== CELERY CONFIGURATION ====================
-
+# Configuración específica para Windows
+import sys
+if sys.platform.startswith('win'):
+    # Usar solo pool para Windows (evita errores de permisos)
+    CELERY_WORKER_POOL = 'solo'
+    CELERY_TASK_ALWAYS_EAGER = False  # Mantener False para testing real
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_WORKER_CONCURRENCY = 1
+else:
+    CELERY_WORKER_POOL = 'prefork'
+    CELERY_WORKER_CONCURRENCY = 4
+    
 # Configuración de Celery
 CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
@@ -243,6 +268,23 @@ CELERY_BEAT_SCHEDULE = {
     'limpiar-dispositivos-inactivos': {
         'task': 'api.tasks.limpiar_dispositivos_inactivos',
         'schedule': timedelta(days=7),  # Cada 7 días
+        'options': {'queue': 'periodic_tasks'}
+    },
+    'tarea-prueba-celery': {
+        'task': 'api.tasks.tarea_prueba_celery',
+        'schedule': timedelta(minutes=5),
+        'options': {'queue': 'periodic_tasks'}
+    },
+    
+    'prueba-servicios-externos': {
+        'task': 'api.tasks.prueba_servicios_externos',
+        'schedule': timedelta(minutes=30),
+        'options': {'queue': 'periodic_tasks'}
+    },
+    
+    'limpiar-dispositivos-inactivos': {
+        'task': 'api.tasks.limpiar_dispositivos_inactivos',
+        'schedule': timedelta(days=7),
         'options': {'queue': 'periodic_tasks'}
     },
 }
@@ -367,3 +409,14 @@ CACHES = {
 
 # Tiempo de vida de la caché (en segundos)
 CACHE_TTL = 60 * 15  # 15 minutos
+
+
+# URLs de autenticación
+#LOGIN_URL = '/api/dashboard/produccion.html'       # URL a la que se redirige si no está logueado
+#LOGIN_REDIRECT_URL = '/api/dashboard/mantenimiento.html'  # URL después de hacer login
+#LOGIN_REDIRECT_URL = '/api/dashboard/inventario.html' 
+# ✅ Corregido (usa solo uno)
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'  # Redirige al dashboard principal
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGOUT_REDIRECT_URL = '/api/dashboard/produccion.html'  # URL después de hacer logout

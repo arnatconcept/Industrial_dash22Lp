@@ -1,0 +1,3358 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Mantenimiento{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">🔧 Dashboard Mantenimiento</h1>
+    <div class="d-flex align-items-center">
+      <span class="badge bg-warning fs-6 p-2 me-3">
+        <i class="fas fa-clock me-1"></i><span id="lastUpdate">Actualizado ahora</span>
+      </span>
+      <button class="btn btn-sm btn-outline-primary" onclick="cargarDatos()">
+        <i class="fas fa-sync-alt"></i> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de filtros -->
+  <div class="card filter-bar mb-4">
+    <div class="card-body py-3">
+      <form class="d-flex align-items-center flex-wrap gap-2" id="filterForm" onsubmit="return false;">
+        <div class="input-group input-group-sm" style="width: 250px;">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+          <input class="form-control" type="search" placeholder="Buscar..." id="searchInput">
+        </div>
+        
+        <div class="d-flex align-items-center">
+          <label class="form-label me-2 mb-0 small">Desde:</label>
+          <input type="date" class="form-control form-control-sm" id="fechaInicio" style="width: 150px;">
+        </div>
+        
+        <div class="d-flex align-items-center">
+          <label class="form-label me-2 mb-0 small">Hasta:</label>
+          <input type="date" class="form-control form-control-sm" id="fechaFin" style="width: 150px;">
+        </div>
+        
+        <select class="form-select form-select-sm" id="filterLinea" style="width: 180px;">
+          <option value="">Todas las Líneas</option>
+          {% for linea in lineas %}
+          <option value="{{ linea.id }}">{{ linea.nombre }}</option>
+          {% endfor %}
+        </select>
+        <select class="form-select form-select-sm" id="filterTurno" style="width: 180px;">
+          <option value="">Todos los Turnos</option>
+        </select>
+        
+        <button class="btn btn-sm btn-primary" type="button" onclick="aplicarFiltros()">
+          <i class="fas fa-filter me-1"></i> Aplicar
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="limpiarFiltros()">
+          <i class="fas fa-times me-1"></i> Limpiar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- KPIs principales -->
+  <div class="row row-cols-1 row-cols-md-4 g-3 mb-4" id="kpi-container"></div>
+
+  <!-- Layout principal: 2 columnas -->
+  <div class="row">
+    <!-- Columna izquierda: Gráficos principales -->
+    <div class="col-lg-8">
+      <!-- Primera fila: Gráficos de producción y eficiencia -->
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-chart-bar me-2"></i>Producción por Línea
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('produccion')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <i class="fas fa-cog"></i>
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" onclick="changeChartType('chartProduccionLinea', 'bar')">Barras</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="changeChartType('chartProduccionLinea', 'line')">Líneas</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-medium">
+                <canvas id="chartProduccionLinea"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-percentage me-2"></i>Eficiencia por Línea
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('eficiencia')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <i class="fas fa-cog"></i>
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" onclick="changeChartType('chartEficiencia', 'line')">Líneas</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="changeChartType('chartEficiencia', 'bar')">Barras</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-medium">
+                <canvas id="chartEficiencia"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Segunda fila: Gráfico OEE grande -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-tachometer-alt me-2"></i>Evolución OEE por Línea
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('oee')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+              <div class="d-flex align-items-center">
+                <div class="btn-group btn-group-sm me-2">
+                  <button class="btn btn-outline-secondary active" onclick="cambiarVistaOEE('diario', this)">Día</button>
+                  <button class="btn btn-outline-secondary" onclick="cambiarVistaOEE('semanal', this)">Semana</button>
+                  <button class="btn btn-outline-secondary" onclick="cambiarVistaOEE('mensual', this)">Mes</button>
+                </div>
+                <div class="btn-group btn-group-sm" id="lineasOEEButtons">
+                  <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-filter"></i> Líneas
+                  </button>
+                  <ul class="dropdown-menu" id="lineasOEEList">
+                    <!-- Se llenará dinámicamente -->
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container-large">
+                <canvas id="chartOEE"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tercera fila: Gráficos de paradas y fallas -->
+      <div class="row">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-stopwatch me-2"></i>Tiempo de Parada
+                        <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('paradas')" title="Ayuda">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- Métricas resumen de paradas -->
+                    <div class="row row-cols-2 g-2 mb-3" id="metricas-paradas-container">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                    
+                    <!-- Gráfico principal -->
+                    <div class="chart-container-medium">
+                        <canvas id="chartParadas"></canvas>
+                    </div>
+                    
+                    <!-- Leyenda de colores -->
+                    <div class="mt-3">
+                        <div class="row text-center small">
+                            <div class="col">
+                                <span class="badge bg-success me-1">●</span> ≤5% (Excelente)
+                            </div>
+                            <div class="col">
+                                <span class="badge bg-warning me-1">●</span> 5-10% (Atención)
+                            </div>
+                            <div class="col">
+                                <span class="badge bg-orange me-1">●</span> 10-15% (Alerta)
+                            </div>
+                            <div class="col">
+                                <span class="badge bg-danger me-1">●</span> >15% (Crítico)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-bug me-2"></i>Fallas por Tipo
+                <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('fallas')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </h6>
+            </div>
+            <div class="card-body">
+                <!-- Métricas resumen de paradas -->
+                <div class="row row-cols-2 g-2 mb-3" id="metricas-fallas-container">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+                
+                <!-- Gráfico principal -->
+                <div class="chart-container-medium">
+                  <canvas id="chartFallasTipo"></canvas>
+                </div>
+                
+                <!-- Leyenda de colores -->
+                <div class="mt-3">
+                  <div class="row text-center small">
+                      <div class="col">
+                          <span class="badge bg-success me-1">●</span> Leve
+                      </div>
+                      <div class="col">
+                          <span class="badge bg-warning me-1">●</span> Moderada
+                      </div>
+                      <div class="col">
+                          <span class="badge bg-orange me-1">●</span> Grave
+                      </div>
+                      <div class="col">
+                          <span class="badge bg-danger me-1">●</span> Crítica
+                      </div>
+                  </div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: Métricas y alertas -->
+    <div class="col-lg-4">
+      <!-- OEE Principal -->
+      <div class="card oee-card bg-gradient-primary text-white mb-4">
+        <div class="card-body text-center">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h6 class="mb-0">
+              <i class="fas fa-industry me-2"></i>OEE GENERAL
+              <button class="btn btn-sm btn-link text-white p-0 ms-1 opacity-75" onclick="mostrarAyuda('oee-detalle')" title="Ayuda">
+                <i class="fas fa-info-circle"></i>
+              </button>
+            </h6>
+            <small class="opacity-75">Efectividad Global</small>
+          </div>
+          <div class="oee-score-container">
+            <div class="oee-score" id="oee-score">0%</div>
+            <div class="oee-progress mt-3">
+              <div class="progress" style="height: 8px;">
+                <div id="oee-progress-bar" class="progress-bar bg-success" style="width: 0%"></div>
+              </div>
+              <div class="d-flex justify-content-between mt-1">
+                <small>0%</small>
+                <small id="oee-target">Meta: 85%</small>
+                <small>100%</small>
+              </div>
+            </div>
+          </div>
+          <div class="row mt-3 text-center">
+            <div class="col-4">
+              <small class="d-block opacity-75">
+                Disponibilidad
+                <button class="btn btn-sm btn-link text-white p-0 ms-1 opacity-75" onclick="mostrarAyuda('disponibilidad')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </small>
+              <strong id="oee-disponibilidad">0%</strong>
+            </div>
+            <div class="col-4">
+              <small class="d-block opacity-75">
+                Rendimiento
+                <button class="btn btn-sm btn-link text-white p-0 ms-1 opacity-75" onclick="mostrarAyuda('rendimiento')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </small>
+              <strong id="oee-rendimiento">0%</strong>
+            </div>
+            <div class="col-4">
+              <small class="d-block opacity-75">
+                Calidad
+                <button class="btn btn-sm btn-link text-white p-0 ms-1 opacity-75" onclick="mostrarAyuda('calidad')" title="Ayuda">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </small>
+              <strong id="oee-calidad">0%</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Métricas de Mantenimiento -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-chart-line me-2"></i>Métricas de Mantenimiento
+            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('metricas-mantenimiento')" title="Ayuda">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row row-cols-2 g-2" id="metricas-mantenimiento-container">
+            <!-- Se llenará dinámicamente -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- Alertas Críticas (Colapsable) -->
+      <div class="card collapsible-panel">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-bell me-2"></i>Alertas Críticas
+            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('alertas')" title="Ayuda">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </h6>
+          <div>
+            <span class="badge bg-danger me-2" id="alertas-count">0</span>
+            <span class="toggle-btn" onclick="toggleAlerts()">
+              <i class="fas fa-chevron-up" id="alerts-toggle-icon"></i>
+            </span>
+          </div>
+        </div>
+        <div class="collapsible-content" id="alertas-content">
+          <div class="card-body p-0">
+            <div class="enhanced-list" id="alertas-criticas-container">
+              <!-- Se llenará dinámicamente -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen de datos -->
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-list me-2"></i>Resumen por Línea
+            <span class="badge bg-primary ms-2" id="contadorLineas">0</span>
+            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('resumen-lineas')" title="Ayuda">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </h6>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" onclick="exportarDatos()" title="Exportar">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="enhanced-list" id="lineasContainer">
+            <!-- Las tablas se cargarán aquí dinámicamente -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>Resumen Paradas
+            <button class="btn btn-sm btn-link text-muted p-0 ms-1" onclick="mostrarAyuda('resumen-paradas')" title="Ayuda">
+              <i class="fas fa-info-circle"></i>
+            </button>
+          </h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="enhanced-list" id="resumenParadas"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para mostrar ayuda de fórmulas -->
+<div class="modal fade" id="ayudaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ayudaModalTitle">
+          <i class="fas fa-calculator me-2"></i>Fórmulas del Indicador
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="ayudaModalBody">
+        <!-- Contenido dinámico -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+
+.fallas-chart-container {
+  position: relative;
+  height: 280px;
+  width: 100%;
+}
+
+.fallas-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: center;
+}
+
+.chart-container-medium {
+  position: relative;
+  height: 250px;
+  width: 100%;
+}
+
+.chart-container-large {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+.oee-score {
+  font-size: 3rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.enhanced-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.list-item {
+  padding: 1rem;
+  border-bottom: 1px solid #e3e6f0;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.list-item:hover {
+  background-color: #f8f9fc;
+}
+
+.alert-item {
+  border-left: 4px solid;
+  margin-bottom: 0.5rem;
+}
+
+.metric-card {
+  transition: transform 0.2s ease-in-out;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+}
+
+.kpi-card {
+  transition: all 0.3s ease;
+}
+
+.kpi-card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.formula-box {
+  background: #f8f9fa;
+  border-left: 4px solid #4e73df;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 0 0.35rem 0.35rem 0;
+}
+
+.formula {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #2e59d9;
+}
+
+.var-definition {
+  background: #e9ecef;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Incluir el plugin de anotaciones para Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+<script>
+
+// Sistema de ayuda para fórmulas
+const formulasAyuda = {
+  'oee': {
+    titulo: 'Overall Equipment Effectiveness (OEE)',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula Principal:</h6>
+        <div class="formula mb-3">OEE = Disponibilidad × Rendimiento × Calidad</div>
+        
+        <h6 class="mb-2">Componentes:</h6>
+        <div class="var-definition mb-2">
+          <strong>Disponibilidad</strong> = (Tiempo Operativo / Tiempo Planificado) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Rendimiento</strong> = (Producción Real / Producción Ideal) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Calidad</strong> = ((Total Producido - Defectuosos) / Total Producido) × 100
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Meta OEE:</strong> 85% - Excelente: ≥90% | Bueno: ≥80% | Regular: ≥70% | Crítico: <60%
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'oee-detalle': {
+    titulo: 'Desglose del OEE General',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Cálculo del OEE General:</h6>
+        <div class="formula mb-3">OEE General = Promedio(OEE Línea₁, OEE Línea₂, ..., OEE Líneaₙ)</div>
+        
+        <p>El OEE general se calcula como el promedio ponderado del OEE de todas las líneas de producción.</p>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-info-circle me-1"></i>
+            <strong>Nota:</strong> Cada línea tiene su propio cálculo de OEE independiente basado en sus datos específicos de producción, paradas y fallas.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'disponibilidad': {
+    titulo: 'Disponibilidad',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Disponibilidad = (Tiempo Operativo / Tiempo Planificado) × 100</div>
+        
+        <h6 class="mb-2">Variables:</h6>
+        <div class="var-definition mb-2">
+          <strong>Tiempo Planificado</strong> = 480 minutos (8 horas de turno)
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Tiempo Operativo</strong> = Tiempo Planificado - Tiempo Total de Paradas
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Tiempo Total de Paradas</strong> = Suma de todas las paradas en minutos
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Ejemplo:</strong> Si hay 60 minutos de paradas → Tiempo Operativo = 480 - 60 = 420 minutos<br>
+            Disponibilidad = (420 / 480) × 100 = 87.5%
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'rendimiento': {
+    titulo: 'Rendimiento',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Rendimiento = (Producción Real / Producción Ideal) × 100</div>
+        
+        <h6 class="mb-2">Variables:</h6>
+        <div class="var-definition mb-2">
+          <strong>Producción Real</strong> = Total de unidades producidas realmente
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Producción Ideal</strong> = Total de unidades que deberían haberse producido (meta)
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Ejemplo:</strong> Si la meta era 1000 unidades y se produjeron 850<br>
+            Rendimiento = (850 / 1000) × 100 = 85%
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'calidad': {
+    titulo: 'Calidad',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Calidad = ((Total Producido - Defectuosos) / Total Producido) × 100</div>
+        
+        <h6 class="mb-2">Variables:</h6>
+        <div class="var-definition mb-2">
+          <strong>Total Producido</strong> = Unidades totales producidas
+        50 fueron defectuosas<br>
+            Calidad = ((1000 - 50) / 1000) × 100 = 95%
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'eficiencia': {
+    titulo: 'Eficiencia de Producción',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Fórmula:</h6>
+        <div class="formula mb-3">Eficiencia = (Producción Real / Meta de Producción) × 100</div>
+        
+        <p>Este indicador mide qué tan cerca se está de alcanzar las metas de producción establecidas para cada línea y turno.</p>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Interpretación:</strong><br>
+            • ≥90%: Excelente desempeño<br>
+            • 80-89%: Buen desempeño<br>
+            • 70-79%: Desempeño regular<br>
+            • <70%: Desempeño crítico
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'produccion': {
+    titulo: 'Producción por Línea',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Cálculo:</h6>
+        <div class="formula mb-3">Producción Total Línea = Σ Producción Turno₁ + Producción Turno₂ + ...</div>
+        
+        <p>La producción total por línea se calcula sumando la producción de todos los turnos para esa línea específica.</p>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-info-circle me-1"></i>
+            <strong>Nota:</strong> Los datos se agrupan por línea y turno para proporcionar una visión detallada del desempeño.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  
+  'paradas': {
+      titulo: 'Análisis Detallado de Tiempos de Parada',
+      contenido: `
+          <div class="formula-box">
+              <h6 class="mb-3">Métricas Principales:</h6>
+              
+              <div class="var-definition mb-2">
+                  <strong>Tiempo Total de Paradas</strong> = Σ(Duración de cada parada en minutos)
+              </div>
+              <div class="var-definition mb-2">
+                  <strong>Porcentaje de Paradas</strong> = (Tiempo Total de Paradas / Tiempo Planificado) × 100
+              </div>
+              <div class="var-definition mb-2">
+                  <strong>Tiempo Planificado</strong> = 480 minutos (8 horas de turno)
+              </div>
+              
+              <h6 class="mt-4 mb-2">Interpretación del Gráfico:</h6>
+              <div class="row text-center small mb-3">
+                  <div class="col-3">
+                      <span class="badge bg-success me-1">●</span> ≤5%<br><small>Excelente</small>
+                  </div>
+                  <div class="col-3">
+                      <span class="badge bg-warning me-1">●</span> 5-10%<br><small>Atención</small>
+                  </div>
+                  <div class="col-3">
+                      <span class="badge bg-orange me-1">●</span> 10-15%<br><small>Alerta</small>
+                  </div>
+                  <div class="col-3">
+                      <span class="badge bg-danger me-1">●</span> >15%<br><small>Crítico</small>
+                  </div>
+              </div>
+              
+              <div class="mt-3 p-3 bg-light rounded">
+                  <small class="text-muted">
+                      <strong>Ejemplo Práctico:</strong><br>
+                      • Tiempo Planificado: 480 minutos (8 horas)<br>
+                      • Paradas Registradas: 60 minutos<br>
+                      • Porcentaje de Paradas = (60 / 480) × 100 = 12.5% del turno<br>
+                      • <strong>Interpretación:</strong> La línea opera al 87.5% de disponibilidad
+                  </small>
+              </div>
+              
+              <div class="alert alert-info mt-3">
+                  <small>
+                      <i class="fas fa-lightbulb me-1"></i>
+                      <strong>Meta Recomendada:</strong> Menos del 5% de tiempo en paradas 
+                      (≤24 minutos por turno de 8 horas)
+                  </small>
+              </div>
+          </div>
+      `
+  },
+  'fallas': {
+    titulo: 'Análisis Detallado de Fallas por Tipo',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Clasificación de Fallas:</h6>
+        
+        <div class="mb-3">
+          <strong>Tipos de Falla:</strong>
+          <ul class="mb-0 mt-2">
+            <li><span class="badge bg-danger me-1">●</span> Eléctrica - Problemas en sistemas eléctricos</li>
+            <li><span class="badge bg-info me-1">●</span> Mecánica - Fallas en componentes mecánicos</li>
+            <li><span class="badge bg-primary me-1">●</span> Instrumentación - Sensores y sistemas de control</li>
+            <li><span class="badge bg-success me-1">●</span> Proceso - Problemas en el proceso productivo</li>
+            <li><span class="badge bg-warning me-1">●</span> Calidad - Defectos en producto terminado</li>
+            <li><span class="badge bg-secondary me-1">●</span> Operativa - Errores en operación</li>
+          </ul>
+        </div>
+        
+        <h6 class="mt-4 mb-2">Niveles de Gravedad:</h6>
+        <div class="row text-center small mb-3">
+          <div class="col-3">
+            <span class="badge bg-success me-1">●</span> Leve<br><small>Sin impacto en producción</small>
+          </div>
+          <div class="col-3">
+            <span class="badge bg-warning me-1">●</span> Moderada<br><small>Impacto menor</small>
+          </div>
+          <div class="col-3">
+            <span class="badge bg-orange me-1">●</span> Grave<br><small>Parada parcial</small>
+          </div>
+          <div class="col-3">
+            <span class="badge bg-danger me-1">●</span> Crítica<br><small>Parada total</small>
+          </div>
+        </div>
+        
+        <div class="var-definition mb-2">
+          <strong>Total Fallas por Tipo</strong> = Σ(Cantidad de fallas de cada tipo)
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Impacto en OEE</strong> = Fallas de Calidad + Fallas Críticas afectan directamente el componente de Calidad
+        </div>
+        
+        <div class="alert alert-warning mt-3">
+          <small>
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <strong>Priorización:</strong> Las fallas críticas y de tipo "Calidad" tienen el mayor impacto en el OEE y deben ser atendidas prioritariamente.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'metricas-mantenimiento': {
+    titulo: 'Métricas de Mantenimiento',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Principales Métricas:</h6>
+        
+        <div class="var-definition mb-2">
+          <strong>Cumplimiento MP</strong> = (Órdenes Preventivas Completadas / Total Órdenes Preventivas) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>MTBF</strong> = Tiempo Total Operación / Número de Fallas Críticas
+        </div>
+        <div class="var-definition mb-2">
+          <strong>MTTR</strong> = Tiempo Total Reparación / Número de Reparaciones
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Disponibilidad Equipos</strong> = (Equipos Operativos / Total Equipos) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Backlog</strong> = Número de Órdenes Pendientes + Asignadas + En Proceso
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Periodo de Cálculo:</strong> Últimos 30 días<br>
+            <strong>MTBF:</strong> Mean Time Between Failures (Tiempo Medio Entre Fallas)<br>
+            <strong>MTTR:</strong> Mean Time To Repair (Tiempo Medio de Reparación)
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'alertas': {
+    titulo: 'Sistema de Alertas',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Niveles de Alerta:</h6>
+        
+        <div class="mb-3">
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-danger me-2">CRÍTICA</span>
+            <span>Órdenes críticas pendientes, equipos detenidos</span>
+          </div>
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-warning me-2">ALTA</span>
+            <span>Mantenimientos vencidos, reparaciones prolongadas</span>
+          </div>
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-info me-2">MEDIA</span>
+            <span>Observaciones en inspecciones, equipos en reparación</span>
+          </div>
+        </div>
+        
+        <div class="alert alert-danger mt-3">
+          <small>
+            <i class="fas fa-bell me-1"></i>
+            <strong>Priorización:</strong> Las alertas se ordenan por severidad (Crítica → Alta → Media) y se muestran las 10 más importantes.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'resumen-lineas': {
+    titulo: 'Resumen por Línea',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Estructura del Resumen:</h6>
+        
+        <p>El resumen por línea proporciona una visión detallada del desempeño de cada línea de producción, desglosado por turnos.</p>
+        
+        <div class="var-definition mb-2">
+          <strong>Producción por Turno</strong> = Suma de producción del turno específico
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Meta por Turno</strong> = Suma de metas del turno específico
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Eficiencia por Turno</strong> = (Producción Turno / Meta Turno) × 100
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Paradas por Turno</strong> = Suma de minutos de parada del turno
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Fallas por Turno</strong> = Conteo de fallas del turno
+        </div>
+        
+        <div class="mt-3 p-3 bg-light rounded">
+          <small class="text-muted">
+            <strong>Agrupación:</strong> Los datos se agrupan primero por línea y luego por turno, permitiendo identificar patrones de desempeño específicos.
+          </small>
+        </div>
+      </div>
+    `
+  },
+  'resumen-paradas': {
+    titulo: 'Resumen de Paradas',
+    contenido: `
+      <div class="formula-box">
+        <h6 class="mb-3">Análisis de Paradas:</h6>
+        
+        <p>Este resumen muestra las 10 paradas más largas registradas, ordenadas por duración descendente.</p>
+        
+        <div class="var-definition mb-2">
+          <strong>Duración</strong> = Tiempo en minutos de cada parada individual
+        </div>
+        <div class="var-definition mb-2">
+          <strong>Impacto</strong> = (Duración Parada / Tiempo Planificado) × 100
+        </div>
+        
+        <div class="alert alert-info mt-3">
+          <small>
+            <i class="fas fa-lightbulb me-1"></i>
+            <strong>Análisis:</strong> Identificar las paradas más largas ayuda a priorizar acciones de mejora y reducir el tiempo de inactividad.
+          </small>
+        </div>
+      </div>
+    `
+  }
+};
+
+// Función para mostrar ayuda
+function mostrarAyuda(tipo) {
+  const ayuda = formulasAyuda[tipo];
+  if (!ayuda) return;
+  
+  document.getElementById('ayudaModalTitle').innerHTML = `<i class="fas fa-calculator me-2"></i>${ayuda.titulo}`;
+  document.getElementById('ayudaModalBody').innerHTML = ayuda.contenido;
+  
+  const modal = new bootstrap.Modal(document.getElementById('ayudaModal'));
+  modal.show();
+}
+
+
+  const API_BASE = "/api";
+  let produccionData = [], paradasData = [], fallasData = [];
+  let chartInstances = {};
+  let metricasMantenimiento = {};
+  let alertasCriticas = [];
+  let vistaOEEActual = 'diario';
+  let datosOEE = {};
+
+  // Configuraciones de colores
+  const colorConfig = {
+    produccion: '#4e73df',
+    meta: '#1cc88a',
+    eficiencia: '#36b9cc',
+    paradas: '#e74a3b',
+    fallas: '#f6c23e'
+  };
+
+  // Configuración OEE
+  const configOEE = {
+    meta: 85,
+    excelente: 90,
+    bueno: 80,
+    regular: 70,
+    critico: 60
+  };
+
+  // Configuración de tipos de falla
+  const tipoFallaConfig = {
+    'electrica': { label: 'Eléctrica', color: '#ff6b6b', description: 'Problemas en sistemas eléctricos' },
+    'mecanica': { label: 'Mecánica', color: '#4ecdc4', description: 'Fallas en componentes mecánicos' },
+    'instrumentacion': { label: 'Instrumentación', color: '#45b7d1', description: 'Sensores y sistemas de control' },
+    'proceso': { label: 'Proceso', color: '#96ceb4', description: 'Problemas en el proceso productivo' },
+    'calidad': { label: 'Calidad', color: '#feca57', description: 'Defectos en producto terminado' },
+    'operativa': { label: 'Operativa', color: '#ff9ff3', description: 'Errores en operación' }
+  };
+
+  const gravedadConfig = {
+    'leve': { class: 'bg-success', label: 'Leve', color: '#28a745', impact: 'Sin impacto en producción' },
+    'moderada': { class: 'bg-warning', label: 'Moderada', color: '#ffc107', impact: 'Impacto menor' },
+    'grave': { class: 'bg-orange', label: 'Grave', color: '#fd7e14', impact: 'Parada parcial' },
+    'critica': { class: 'bg-danger', label: 'Crítica', color: '#dc3545', impact: 'Parada total' }
+  };
+
+  // Variables globales
+  let alertsCollapsed = false;
+  
+  // Función para mostrar/ocultar alertas
+  function toggleAlerts() {
+    const alertsContent = document.getElementById('alertas-content');
+    const toggleIcon = document.getElementById('alerts-toggle-icon');
+    
+    if (!alertsContent || !toggleIcon) {
+      console.warn('Elementos para toggleAlerts no encontrados');
+      return;
+    }
+    
+    if (alertsCollapsed) {
+      alertsContent.style.display = 'block';
+      toggleIcon.classList.remove('fa-chevron-down');
+      toggleIcon.classList.add('fa-chevron-up');
+    } else {
+      alertsContent.style.display = 'none';
+      toggleIcon.classList.remove('fa-chevron-up');
+      toggleIcon.classList.add('fa-chevron-down');
+    }
+    
+    alertsCollapsed = !alertsCollapsed;
+  }
+
+  // FUNCIÓN PARA OBTENER SEMANA DEL AÑO - CORREGIDA
+  function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  }
+
+  // FUNCIÓN CAMBIAR VISTA OEE - CORREGIDA
+  function cambiarVistaOEE(vista, element) {
+    vistaOEEActual = vista;
+    
+    // Actualizar estado de botones
+    const btnGroup = element.parentElement;
+    btnGroup.querySelectorAll('.btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    element.classList.add('active');
+    
+    // Recargar gráfico OEE con nueva vista
+    if (chartInstances['oee']) {
+      renderChartOEE();
+      actualizarControlesLineasOEE();
+    }
+  }
+
+  function actualizarTimestamp() {
+    const now = new Date();
+    const lastUpdateElement = document.getElementById('lastUpdate');
+    if (lastUpdateElement) {
+      lastUpdateElement.textContent = `Actualizado: ${now.toLocaleTimeString()}`;
+    }
+  }
+
+  async function fetchAPI(endpoint) {
+    const token = localStorage.getItem("access_token");
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, { 
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        } 
+      });
+      if(res.status === 401) { 
+        localStorage.clear(); 
+        window.location.href="/login"; 
+        return [];
+      }
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching API:', error);
+      showError('Error al cargar datos: ' + error.message);
+      return [];
+    }
+  }
+
+  // Función para validar el rango de fechas
+  function validarRangoFechas() {
+    const fechaInicio = document.getElementById('fechaInicio');
+    const fechaFin = document.getElementById('fechaFin');
+    
+    if (!fechaInicio || !fechaFin) {
+      console.warn('Elementos de fecha no encontrados');
+      return true;
+    }
+    
+    if (fechaInicio.value && fechaFin.value && fechaInicio.value > fechaFin.value) {
+      showError('La fecha "Desde" no puede ser posterior a la fecha "Hasta"');
+      return false;
+    }
+    return true;
+  }
+
+  function calcularOEE(produccion, paradas, fallas) {
+    const resultados = {
+      general: 0,
+      disponibilidad: 0,
+      rendimiento: 0,
+      calidad: 0,
+      lineas: {}
+    };
+
+    // Agrupar por línea
+    const lineas = [...new Set(produccion.map(p => p.linea_nombre))];
+    
+    lineas.forEach(linea => {
+      const prodLinea = produccion.filter(p => p.linea_nombre === linea);
+      const paradasLinea = paradas.filter(p => p.linea_nombre === linea);
+      const fallasLinea = fallas.filter(f => f.linea_nombre === linea);
+      
+      // 1. DISPONIBILIDAD = Tiempo Operativo / Tiempo Planificado
+      const tiempoPlanificado = 480; // 8 horas = 480 minutos (asumiendo turno de 8h)
+      const tiempoParadas = paradasLinea.reduce((sum, p) => sum + (p.duracion_minutos || 0), 0);
+      const tiempoOperativo = tiempoPlanificado - tiempoParadas;
+      const disponibilidad = (tiempoOperativo / tiempoPlanificado) * 100;
+
+      // 2. RENDIMIENTO = Producción Real / Producción Ideal
+      // MODIFICACIÓN: Usar fabricacion_toneladas en lugar de cantidad
+      const produccionReal = prodLinea.reduce((sum, p) => sum + (p.fabricacion_toneladas || 0), 0);
+      const produccionIdeal = prodLinea.reduce((sum, p) => sum + (p.meta_produccion || 0), 0);
+      const rendimiento = produccionIdeal > 0 ? (produccionReal / produccionIdeal) * 100 : 0;
+
+      // 3. CALIDAD = (Total Producción - Defectuosos) / Total Producción
+      const totalProducido = produccionReal;
+      // MODIFICACIÓN: Usar fabricacion_scrap para calcular calidad
+      const scrap = prodLinea.reduce((sum, p) => sum + (p.fabricacion_scrap || 0), 0);
+      const calidad = totalProducido > 0 ? 
+        ((totalProducido - scrap) / totalProducido) * 100 : 100;
+
+      // OEE = Disponibilidad × Rendimiento × Calidad
+      const oee = (disponibilidad * rendimiento * calidad) / 10000;
+
+      resultados.lineas[linea] = {
+        disponibilidad: Math.min(100, Math.max(0, disponibilidad)),
+        rendimiento: Math.min(100, Math.max(0, rendimiento)),
+        calidad: Math.min(100, Math.max(0, calidad)),
+        oee: Math.min(100, Math.max(0, oee))
+      };
+    });
+
+    // Calcular promedios generales
+    const lineasCount = Object.keys(resultados.lineas).length;
+    if (lineasCount > 0) {
+      resultados.disponibilidad = Object.values(resultados.lineas)
+        .reduce((sum, l) => sum + l.disponibilidad, 0) / lineasCount;
+      resultados.rendimiento = Object.values(resultados.lineas)
+        .reduce((sum, l) => sum + l.rendimiento, 0) / lineasCount;
+      resultados.calidad = Object.values(resultados.lineas)
+        .reduce((sum, l) => sum + l.calidad, 0) / lineasCount;
+      resultados.general = Object.values(resultados.lineas)
+        .reduce((sum, l) => sum + l.oee, 0) / lineasCount;
+    }
+
+    return resultados;
+  }
+
+
+  // Función para renderizar OEE
+  function renderizarOEE() {
+    const oeeData = calcularOEE(produccionData, paradasData, fallasData);
+    datosOEE = oeeData;
+
+    // Actualizar tarjeta OEE principal
+    const oeeScoreElement = document.getElementById('oee-score');
+    const oeeProgressBar = document.getElementById('oee-progress-bar');
+    const oeeDisponibilidad = document.getElementById('oee-disponibilidad');
+    const oeeRendimiento = document.getElementById('oee-rendimiento');
+    const oeeCalidad = document.getElementById('oee-calidad');
+
+    if (oeeScoreElement) oeeScoreElement.textContent = `${oeeData.general.toFixed(1)}%`;
+    if (oeeProgressBar) oeeProgressBar.style.width = `${oeeData.general}%`;
+    if (oeeDisponibilidad) oeeDisponibilidad.textContent = `${oeeData.disponibilidad.toFixed(1)}%`;
+    if (oeeRendimiento) oeeRendimiento.textContent = `${oeeData.rendimiento.toFixed(1)}%`;
+    if (oeeCalidad) oeeCalidad.textContent = `${oeeData.calidad.toFixed(1)}%`;
+
+    // Color según el valor del OEE
+    const oeeCard = document.querySelector('.oee-card');
+    if (oeeCard) {
+      oeeCard.classList.remove('bg-gradient-success', 'bg-gradient-warning', 'bg-gradient-danger');
+      
+      if (oeeData.general >= configOEE.excelente) {
+        oeeCard.classList.add('bg-gradient-success');
+      } else if (oeeData.general >= configOEE.bueno) {
+        oeeCard.classList.add('bg-gradient-warning');
+      } else {
+        oeeCard.classList.add('bg-gradient-danger');
+      }
+    }
+
+    // Actualizar KPIs de producción
+    renderKPIsConOEE(oeeData);
+    
+    // Renderizar gráfico OEE
+    renderChartOEE();
+    actualizarControlesLineasOEE();
+  }
+
+  // Modificar renderKPIs para incluir OEE
+  function renderKPIsConOEE(oeeData) {
+    const kpiContainer = document.getElementById("kpi-container");
+    if (!kpiContainer) return;
+    
+    // MODIFICACIÓN: Usar campos del endpoint /produccion/
+    const totalToneladas = produccionData.reduce((sum, p) => sum + (p.fabricacion_toneladas || 0), 0);
+    const totalBandejas = produccionData.reduce((sum, p) => sum + (p.bandejas || 0), 0);
+    const totalScrap = produccionData.reduce((sum, p) => sum + (p.fabricacion_scrap || 0), 0);
+    const totalMeta = produccionData.reduce((sum, p) => sum + (p.meta_produccion || 0), 0);
+    const totalParadas = paradasData.reduce((sum, p) => sum + (p.duracion_minutos || 0), 0);
+    const totalFallas = fallasData.reduce((sum, f) => sum + (f.cantidad || 0), 0);
+
+    const kpis = [
+      { 
+        title: "Producción Total", 
+        value: `${totalToneladas.toLocaleString()} t`, 
+        color: "primary", 
+        icon: "fas fa-weight-hanging",
+        subtitle: `${((totalToneladas / totalMeta) * 100 || 0).toFixed(1)}% de meta`
+      },
+      { 
+        title: "Bandejas Producidas", 
+        value: totalBandejas.toLocaleString(), 
+        color: "success", 
+        icon: "fas fa-box",
+        subtitle: "Unidades totales"
+      },
+      { 
+        title: "Tiempo Paradas", 
+        value: `${Math.round(totalParadas)} min`, 
+        color: "danger", 
+        icon: "fas fa-stopwatch",
+        subtitle: `${((totalParadas / 480) * 100).toFixed(1)}% del turno`
+      },
+      { 
+        title: "Fallas Reportadas", 
+        value: totalFallas, 
+        color: "warning", 
+        icon: "fas fa-exclamation-triangle",
+        subtitle: "Total de incidentes"
+      },
+      { 
+        title: "Disponibilidad", 
+        value: `${oeeData.disponibilidad.toFixed(1)}%`, 
+        color: oeeData.disponibilidad >= 90 ? "success" : 
+              oeeData.disponibilidad >= 85 ? "warning" : "danger",
+        icon: "fas fa-clock",
+        subtitle: "Tiempo operativo"
+      },
+      { 
+        title: "Scrap Generado", 
+        value: `${totalScrap.toLocaleString()} t`, 
+        color: totalScrap/totalToneladas*100 > 5 ? "danger" : 
+              totalScrap/totalToneladas*100 > 2 ? "warning" : "success",
+        icon: "fas fa-trash",
+        subtitle: `${((totalScrap/totalToneladas)*100 || 0).toFixed(1)}% del total`
+      },
+      { 
+        title: "OEE General", 
+        value: `${oeeData.general.toFixed(1)}%`, 
+        color: oeeData.general >= configOEE.excelente ? "success" : 
+              oeeData.general >= configOEE.bueno ? "warning" : "danger",
+        icon: "fas fa-tachometer-alt",
+        subtitle: "Overall Equipment Effectiveness"
+      },
+      { 
+        title: "Calidad", 
+        value: `${oeeData.calidad.toFixed(1)}%`, 
+        color: oeeData.calidad >= 95 ? "success" : 
+              oeeData.calidad >= 90 ? "warning" : "danger",
+        icon: "fas fa-award",
+        subtitle: "Productos buenos"
+      }
+    ];
+    
+    kpiContainer.innerHTML = '';
+
+    kpis.forEach(kpi => {
+      const div = document.createElement('div');
+      div.classList.add('col');
+      div.innerHTML = `
+        <div class="card kpi-card h-100 border-0 shadow-sm">
+          <div class="card-body text-center p-3">
+            <div class="icon-wrapper bg-${kpi.color} bg-opacity-10 rounded-circle mx-auto mb-2 p-2">
+              <i class="${kpi.icon} fs-4 text-${kpi.color}"></i>
+            </div>
+            <h4 class="mb-1 fw-bold">${kpi.value}</h4>
+            <small class="text-muted">${kpi.title}</small>
+            ${kpi.subtitle ? `<div class="x-small text-muted mt-1">${kpi.subtitle}</div>` : ''}
+          </div>
+        </div>
+      `;
+      kpiContainer.appendChild(div);
+    });
+  }
+  // Gráfico de OEE mejorado
+  function renderChartOEE() {
+    const canvas = document.getElementById('chartOEE');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Datos de ejemplo para la evolución temporal
+    const generarDatosEvolucion = (lineas, vista) => {
+      const datos = {};
+      const hoy = new Date();
+      
+      lineas.forEach(linea => {
+        datos[linea] = [];
+        let puntos = 7; // Por defecto 7 días
+        
+        if (vista === 'semanal') {
+          puntos = 4; // 4 semanas
+        } else if (vista === 'mensual') {
+          puntos = 6; // 6 meses
+        }
+        
+        // Valor base del OEE para esta línea
+        const oeeBase = datosOEE.lineas[linea] ? datosOEE.lineas[linea].oee : 75;
+        
+        // Generar datos históricos simulados
+        for (let i = puntos - 1; i >= 0; i--) {
+          // Variación con tendencia realista
+          const variacion = (Math.random() * 10) - 3; // -3% a +7%
+          const tendencia = (puntos - i) * 0.5; // Mejora gradual
+          const valor = Math.max(50, Math.min(95, oeeBase + variacion + tendencia));
+          
+          datos[linea].push(Number(valor.toFixed(1)));
+        }
+      });
+      
+      return datos;
+    };
+
+    const lineas = Object.keys(datosOEE.lineas);
+    const datosEvolucion = generarDatosEvolucion(lineas, vistaOEEActual);
+    
+    // Configurar etiquetas del eje X según la vista
+    const etiquetas = [];
+    const hoy = new Date();
+    const puntos = vistaOEEActual === 'diario' ? 7 : 
+                  vistaOEEActual === 'semanal' ? 4 : 6;
+    
+    for (let i = puntos - 1; i >= 0; i--) {
+      let fecha = new Date();
+      
+      if (vistaOEEActual === 'diario') {
+        fecha.setDate(hoy.getDate() - i);
+        etiquetas.push(fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }));
+      } else if (vistaOEEActual === 'semanal') {
+        fecha.setDate(hoy.getDate() - (i * 7));
+        etiquetas.push(`Sem ${getWeekNumber(fecha)}`);
+      } else {
+        fecha.setMonth(hoy.getMonth() - i);
+        etiquetas.push(fecha.toLocaleDateString('es-ES', { month: 'short' }));
+      }
+    }
+
+    // Destruir instancia anterior si existe
+    if (chartInstances['oee']) {
+      chartInstances['oee'].destroy();
+    }
+
+    // Colores para las líneas
+    const coloresLineas = [
+      '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', 
+      '#858796', '#5a5c69', '#6f42c1', '#e83e8c', '#fd7e14'
+    ];
+
+    // Preparar datasets
+    const datasets = lineas.map((linea, index) => {
+      const color = coloresLineas[index % coloresLineas.length];
+      const datosLinea = datosEvolucion[linea] || [];
+      
+      return {
+        label: `Línea ${linea}`,
+        data: datosLinea,
+        borderColor: color,
+        backgroundColor: color + '20',
+        borderWidth: 3,
+        pointRadius: 4,
+        pointBackgroundColor: color,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1,
+        pointHoverRadius: 6,
+        fill: false,
+        tension: 0.3
+      };
+    });
+
+    // Añadir línea de meta OEE
+    datasets.push({
+      label: 'Meta OEE (85%)',
+      data: Array(puntos).fill(configOEE.meta),
+      borderColor: '#dc3545',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 0,
+      borderDash: [5, 5],
+      tension: 0
+    });
+
+    chartInstances['oee'] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: etiquetas,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            min: 50,
+            max: 100,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
+              }
+            },
+            title: {
+              display: true,
+              text: 'OEE (%)'
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            }
+          },
+          x: {
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            },
+            title: {
+              display: true,
+              text: vistaOEEActual === 'diario' ? 'Días' : 
+                    vistaOEEActual === 'semanal' ? 'Semanas' : 'Meses'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              usePointStyle: true,
+              padding: 20
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                if (context.parsed.y !== null) {
+                  label += context.parsed.y + '%';
+                }
+                return label;
+              }
+            }
+          }
+        },
+        elements: {
+          line: {
+            tension: 0.3
+          }
+        }
+      }
+    });
+  }
+
+  // Función para actualizar los controles de líneas
+  function actualizarControlesLineasOEE() {
+    const container = document.getElementById('lineasOEEList');
+    if (!container) return;
+    
+    const lineas = Object.keys(datosOEE.lineas);
+    container.innerHTML = '';
+    
+    lineas.forEach(linea => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <div class="form-check dropdown-item">
+          <input class="form-check-input" type="checkbox" checked 
+                 onchange="toggleLineaOEE('${linea}')" id="checkLinea${linea}">
+          <label class="form-check-label w-100" for="checkLinea${linea}">
+            Línea ${linea}
+          </label>
+        </div>
+      `;
+      container.appendChild(li);
+    });
+    
+    // Añadir opción para mostrar/ocultar todas
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="dropdown-divider"></div>
+      <button class="dropdown-item small" onclick="toggleTodasLineasOEE(true)">Mostrar todas</button>
+      <button class="dropdown-item small" onclick="toggleTodasLineasOEE(false)">Ocultar todas</button>
+    `;
+    container.appendChild(li);
+  }
+
+  // Función para mostrar/ocultar línea específica
+  function toggleLineaOEE(lineaNombre) {
+    if (chartInstances['oee']) {
+      const chart = chartInstances['oee'];
+      const datasetIndex = chart.data.datasets.findIndex(ds => ds.label === `Línea ${lineaNombre}`);
+      
+      if (datasetIndex !== -1) {
+        chart.data.datasets[datasetIndex].hidden = !chart.data.datasets[datasetIndex].hidden;
+        chart.update();
+      }
+    }
+  }
+
+  // Función para mostrar/ocultar todas las líneas
+  function toggleTodasLineasOEE(mostrar) {
+    const lineas = Object.keys(datosOEE.lineas);
+    lineas.forEach(linea => {
+      if (chartInstances['oee']) {
+        const chart = chartInstances['oee'];
+        const datasetIndex = chart.data.datasets.findIndex(ds => ds.label === `Línea ${linea}`);
+        
+        if (datasetIndex !== -1) {
+          chart.data.datasets[datasetIndex].hidden = !mostrar;
+        }
+      }
+      
+      // Actualizar checkboxes
+      const checkbox = document.getElementById(`checkLinea${linea}`);
+      if (checkbox) {
+        checkbox.checked = mostrar;
+      }
+    });
+    
+    if (chartInstances['oee']) {
+      chartInstances['oee'].update();
+    }
+  }
+
+  // Función para extraer líneas de los datos existentes - AÑADIDA
+  function extraerLineasDeDatos() {
+    const lineasMap = {};
+    
+    // Extraer de producción
+    produccionData.forEach(p => {
+        if (p.linea && p.linea_nombre) {
+            lineasMap[p.linea] = { id: p.linea, nombre: p.linea_nombre };
+        }
+    });
+    
+    // Extraer de paradas
+    paradasData.forEach(p => {
+        if (p.linea && p.linea_nombre && !lineasMap[p.linea]) {
+            lineasMap[p.linea] = { id: p.linea, nombre: p.linea_nombre };
+        }
+    });
+    
+    // Extraer de fallas
+    fallasData.forEach(f => {
+        if (f.linea && f.linea_nombre && !lineasMap[f.linea]) {
+            lineasMap[f.linea] = { id: f.linea, nombre: f.linea_nombre };
+        }
+    });
+    
+    return Object.values(lineasMap);
+  }
+
+  function establecerFechasPorDefecto() {
+    const today = new Date();
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
+    
+    const fechaInicio = document.getElementById('fechaInicio');
+    const fechaFin = document.getElementById('fechaFin');
+    
+    if (fechaInicio && fechaFin) {
+      fechaInicio.value = lastWeek.toISOString().split('T')[0];
+      fechaFin.value = today.toISOString().split('T')[0];
+    }
+  }
+
+  async function cargarLineas() {
+    try {
+        // Intentar diferentes endpoints posibles
+        const endpoints = ["/lineas/", "/api/lineas/", "/lineas"];
+        
+        let lineas = [];
+        for (const endpoint of endpoints) {
+            try {
+                lineas = await fetchAPI(endpoint);
+                if (lineas && lineas.length > 0) break;
+            } catch (e) {
+                console.warn(`Endpoint ${endpoint} no disponible`);
+            }
+        }
+        
+        // Si no se obtuvieron líneas de la API, extraer de los datos
+        if (!lineas || lineas.length === 0) {
+            throw new Error('No se pudieron cargar líneas de la API');
+        }
+        
+        const selectLinea = document.getElementById('filterLinea');
+        if (!selectLinea) {
+          console.warn('Elemento filterLinea no encontrado');
+          return false;
+        }
+        
+        // Limpiar opciones existentes (excepto la primera)
+        selectLinea.innerHTML = '<option value="">Todas las Líneas</option>';
+        
+        // Añadir cada línea como opción
+        lineas.forEach(linea => {
+            const option = document.createElement('option');
+            option.value = linea.id;
+            option.textContent = linea.nombre || `Línea ${linea.id}`;
+            selectLinea.appendChild(option);
+        });
+        
+        console.log('Líneas cargadas via API:', lineas.length);
+        return true;
+    } catch (error) {
+        console.error('Error cargando líneas via API:', error);
+        return false;
+    }
+  }
+  
+  // Función para cargar líneas desde los datos existentes - MEJORADA
+  function cargarLineasDesdeDatos() {
+    try {
+        const lineas = extraerLineasDeDatos();
+        const selectLinea = document.getElementById('filterLinea');
+        
+        if (!selectLinea) {
+            console.warn('Elemento filterLinea no encontrado');
+            return;
+        }
+        
+        // Limpiar opciones existentes (excepto la primera)
+        selectLinea.innerHTML = '<option value="">Todas las Líneas</option>';
+        
+        // Añadir cada línea como opción
+        lineas.forEach(linea => {
+            const option = document.createElement('option');
+            option.value = linea.id;
+            option.textContent = linea.nombre;
+            selectLinea.appendChild(option);
+        });
+        
+        console.log('Líneas cargadas desde datos:', lineas.length);
+    } catch (error) {
+        console.error('Error en cargarLineasDesdeDatos:', error);
+    }
+  }
+
+  async function cargarMetricasMantenimiento() {
+    try {
+      // Cargar datos de órdenes de mantenimiento
+      const ordenesUrl = "/ordenes/";
+      const ordenesData = await fetchAPI(ordenesUrl);
+      
+      // Cargar datos de inspecciones
+      const inspeccionesUrl = "/ejecuciones-inspeccion/";
+      const inspeccionesData = await fetchAPI(inspeccionesUrl);
+      
+      // Cargar datos de motores y variadores para estados
+      const motoresUrl = "/motores/";
+      const variadoresUrl = "/variadores/";
+      const [motoresData, variadoresData] = await Promise.all([
+        fetchAPI(motoresUrl),
+        fetchAPI(variadoresUrl)
+      ]);
+
+      // Calcular métricas
+      metricasMantenimiento = calcularMetricasMantenimiento(
+        ordenesData, 
+        inspeccionesData, 
+        motoresData, 
+        variadoresData,
+        paradasData,
+        fallasData
+      );
+      
+      alertasCriticas = generarAlertasCriticas(
+        motoresData,
+        variadoresData,
+        inspeccionesData,
+        ordenesData
+      );
+
+      renderMetricasMantenimiento();
+      renderAlertasCriticas();
+      
+    } catch (error) {
+      console.error('Error cargando métricas de mantenimiento:', error);
+    }
+  }
+
+  function calcularMetricasMantenimiento(ordenes, inspecciones, motores, variadores, paradas, fallas) {
+    const ahora = new Date();
+    const hace30Dias = new Date(ahora);
+    hace30Dias.setDate(ahora.getDate() - 30);
+
+    // 1. Cumplimiento de Mantenimiento Preventivo
+    const ordenesPreventivas = ordenes.filter(o => o.tipo === 'preventivo');
+    const ordenesCompletadas = ordenesPreventivas.filter(o => 
+      o.estado === 'completada' && new Date(o.fecha_cierre) >= hace30Dias
+    );
+    const cumplimientoPreventivo = ordenesPreventivas.length > 0 ? 
+      (ordenesCompletadas.length / ordenesPreventivas.length * 100).toFixed(1) : 0;
+
+    // 2. Tiempo Medio Entre Fallas (MTBF)
+    const fallasCriticas = fallas.filter(f => f.gravedad === 'critica' || f.gravedad === 'grave');
+    const totalHorasOperacion = paradas.reduce((sum, p) => sum + p.duracion_minutos, 0) / 60;
+    const mtbf = fallasCriticas.length > 0 ? (totalHorasOperacion / fallasCriticas.length).toFixed(1) : 'N/A';
+
+    // 3. Tiempo Medio de Reparación (MTTR)
+    const ordenesCorrectivas = ordenes.filter(o => 
+      o.tipo === 'correctivo' && o.estado === 'completada' && o.tiempo_real
+    );
+    const mttr = ordenesCorrectivas.length > 0 ? 
+      (ordenesCorrectivas.reduce((sum, o) => sum + o.tiempo_real, 0) / ordenesCorrectivas.length).toFixed(1) : 'N/A';
+
+    // 4. Disponibilidad de Equipos
+    const equiposTotales = motores.length + variadores.length;
+    const equiposOperativos = 
+      motores.filter(m => m.estado === 'operativo').length + 
+      variadores.filter(v => v.estado === 'operativo').length;
+    const disponibilidad = equiposTotales > 0 ? 
+      (equiposOperativos / equiposTotales * 100).toFixed(1) : 0;
+
+    // 5. Backlog de Mantenimiento
+    const backlog = ordenes.filter(o => 
+      ['pendiente', 'asignada', 'en_proceso'].includes(o.estado)
+    ).length;
+
+    // 6. Eficiencia de Inspecciones
+    const inspeccionesCompletadas = inspecciones.filter(i => i.observaciones);
+    const eficienciaInspecciones = inspecciones.length > 0 ? 
+      (inspeccionesCompletadas.length / inspecciones.length * 100).toFixed(1) : 0;
+
+    // 7. Costo de Mantenimiento (estimado)
+    const costoEstimado = ordenesCompletadas.reduce((sum, o) => {
+      // Estimación basada en tiempo y prioridad
+      const costoBase = o.tiempo_real ? o.tiempo_real * 100 : 500; // $100 por hora
+      const multiplicador = {
+        'critica': 1.5,
+        'alta': 1.2,
+        'media': 1,
+        'baja': 0.8
+      }[o.prioridad] || 1;
+      return sum + (costoBase * multiplicador);
+    }, 0);
+
+    return {
+      cumplimientoPreventivo,
+      mtbf,
+      mttr,
+      disponibilidad,
+      backlog,
+      eficienciaInspecciones,
+      costoEstimado: Math.round(costoEstimado),
+      equiposOperativos,
+      equiposTotales,
+      ordenesPendientes: backlog
+    };
+  }
+
+  function renderMetricasMantenimiento() {
+    const container = document.getElementById("metricas-mantenimiento-container");
+    if (!container) return;
+    
+    const metricas = metricasMantenimiento;
+
+    const metricasKPI = [
+      {
+        title: "Cumplimiento MP",
+        value: `${metricas.cumplimientoPreventivo}%`,
+        color: metricas.cumplimientoPreventivo >= 90 ? "success" : 
+               metricas.cumplimientoPreventivo >= 80 ? "warning" : "danger",
+        icon: "fas fa-calendar-check",
+        subtitle: "Mantenimiento Preventivo"
+      },
+      {
+        title: "Disponibilidad",
+        value: `${metricas.disponibilidad}%`,
+        color: metricas.disponibilidad >= 95 ? "success" : 
+               metricas.disponibilidad >= 90 ? "warning" : "danger",
+        icon: "fas fa-plug",
+        subtitle: "Equipos Operativos"
+      },
+      {
+        title: "MTBF",
+        value: `${metricas.mtbf}h`,
+        color: metricas.mtbf === 'N/A' || metricas.mtbf > 100 ? "success" : 
+               metricas.mtbf > 50 ? "warning" : "danger",
+        icon: "fas fa-history",
+        subtitle: "Tiempo Entre Fallas"
+      },
+      {
+        title: "MTTR",
+        value: `${metricas.mttr}m`,
+        color: metricas.mttr === 'N/A' || metricas.mttr < 60 ? "success" : 
+               metricas.mttr < 120 ? "warning" : "danger",
+        icon: "fas fa-tools",
+        subtitle: "Tiempo de Reparación"
+      },
+      {
+        title: "Backlog",
+        value: metricas.backlog,
+        color: metricas.backlog < 5 ? "success" : 
+               metricas.backlog < 10 ? "warning" : "danger",
+        icon: "fas fa-clipboard-list",
+        subtitle: "Órdenes Pendientes"
+      },
+      {
+        title: "Inspecciones",
+        value: `${metricas.eficienciaInspecciones}%`,
+        color: metricas.eficienciaInspecciones >= 90 ? "success" : 
+               metricas.eficienciaInspecciones >= 80 ? "warning" : "danger",
+        icon: "fas fa-clipboard-check",
+        subtitle: "Eficiencia"
+      },
+      {
+        title: "Costos Est.",
+        value: `$${metricas.costoEstimado.toLocaleString()}`,
+        color: "info",
+        icon: "fas fa-dollar-sign",
+        subtitle: "Últimos 30 días"
+      },
+      {
+        title: "Equipos Activos",
+        value: `${metricas.equiposOperativos}/${metricas.equiposTotales}`,
+        color: "primary",
+        icon: "fas fa-cogs",
+        subtitle: "Operativos/Total"
+      }
+    ];
+
+    container.innerHTML = '';
+
+    metricasKPI.forEach(metrica => {
+      const div = document.createElement('div');
+      div.classList.add('col');
+      div.innerHTML = `
+        <div class="card metric-card h-100 border-0 shadow-sm">
+          <div class="card-body text-center p-2">
+            <div class="icon-wrapper bg-${metrica.color} bg-opacity-10 rounded-circle mx-auto mb-2 p-2">
+              <i class="${metrica.icon} fs-5 text-${metrica.color}"></i>
+            </div>
+            <h5 class="mb-1 fw-bold">${metrica.value}</h5>
+            <small class="text-muted">${metrica.title}</small>
+            ${metrica.subtitle ? `<div class="x-small text-muted mt-1">${metrica.subtitle}</div>` : ''}
+          </div>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function generarAlertasCriticas(motores, variadores, inspecciones, ordenes) {
+    const alertas = [];
+
+    // Alertas de motores con próximo mantenimiento vencido
+    motores.forEach(motor => {
+      if (motor.proximo_mantenimiento && new Date(motor.proximo_mantenimiento) < new Date()) {
+        alertas.push({
+          tipo: 'mantenimiento',
+          severidad: 'alta',
+          mensaje: `Motor ${motor.codigo} - Mantenimiento vencido`,
+          equipo: motor.codigo,
+          fecha: motor.proximo_mantenimiento
+        });
+      }
+      
+      if (motor.estado === 'reparacion' && motor.horas_uso > 1000) {
+        alertas.push({
+          tipo: 'reparacion',
+          severidad: 'media',
+          mensaje: `Motor ${motor.codigo} - Reparación prolongada`,
+          equipo: motor.codigo,
+          horas: motor.horas_uso
+        });
+      }
+    });
+
+    // Alertas de variadores
+    variadores.forEach(variador => {
+      if (variador.estado === 'reparacion') {
+        alertas.push({
+          tipo: 'reparacion',
+          severidad: 'alta',
+          mensaje: `Variador ${variador.codigo} - En reparación`,
+          equipo: variador.codigo
+        });
+      }
+    });
+
+    // Alertas de órdenes críticas pendientes
+    const ordenesCriticas = ordenes.filter(o => 
+      o.prioridad === 'critica' && o.estado !== 'completada'
+    );
+    
+    ordenesCriticas.forEach(orden => {
+      alertas.push({
+        tipo: 'orden',
+        severidad: 'critica',
+        mensaje: `Orden crítica: ${orden.titulo}`,
+        orden: orden.id,
+        estado: orden.estado
+      });
+    });
+
+    // Alertas de inspecciones con problemas
+    inspecciones.forEach(inspeccion => {
+      if (inspeccion.observaciones && inspeccion.observaciones.toLowerCase().includes('critic')) {
+        alertas.push({
+          tipo: 'inspeccion',
+          severidad: 'alta',
+          mensaje: `Inspección con observaciones críticas`,
+          inspeccion: inspeccion.id,
+          fecha: inspeccion.fecha
+        });
+      }
+    });
+
+    return alertas.sort((a, b) => {
+      const severidadOrden = { 'critica': 0, 'alta': 1, 'media': 2, 'baja': 3 };
+      return severidadOrden[a.severidad] - severidadOrden[b.severidad];
+    }).slice(0, 10); // Mostrar solo las 10 más críticas
+  }
+
+  function renderAlertasCriticas() {
+    const container = document.getElementById("alertas-criticas-container");
+    const alertasCount = document.getElementById("alertas-count");
+    
+    if (!container || !alertasCount) return;
+    
+    container.innerHTML = '';
+    alertasCount.textContent = alertasCriticas.length;
+
+    if (alertasCriticas.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-4 text-muted">
+          <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+          <p class="mb-0 small">No hay alertas críticas</p>
+        </div>
+      `;
+      return;
+    }
+
+    alertasCriticas.forEach(alerta => {
+      const div = document.createElement('div');
+      div.classList.add('list-item', 'alert-item');
+      
+      const severidadClass = {
+        'critica': 'border-danger bg-danger bg-opacity-10',
+        'alta': 'border-warning bg-warning bg-opacity-10',
+        'media': 'border-info bg-info bg-opacity-10',
+        'baja': 'border-secondary bg-secondary bg-opacity-10'
+      }[alerta.severidad] || 'border-secondary';
+
+      div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center mb-1">
+              <span class="badge bg-${alerta.severidad === 'critica' ? 'danger' : 
+                                    alerta.severidad === 'alta' ? 'warning' : 
+                                    alerta.severidad === 'media' ? 'info' : 'secondary'} me-2">
+                ${alerta.severidad.toUpperCase()}
+              </span>
+              <small class="text-muted">${alerta.tipo}</small>
+            </div>
+            <h6 class="mb-1 small">${alerta.mensaje}</h6>
+            ${alerta.equipo ? `<div class="x-small text-muted">Equipo: ${alerta.equipo}</div>` : ''}
+            ${alerta.fecha ? `<div class="x-small text-muted">Fecha: ${new Date(alerta.fecha).toLocaleDateString('es-ES')}</div>` : ''}
+          </div>
+        </div>
+      `;
+      
+      div.classList.add(severidadClass.split(' ')[0]);
+      container.appendChild(div);
+    });
+  }
+
+  async function cargarDatos() {
+    try {
+      // Validar rango de fechas antes de continuar
+      if (!validarRangoFechas()) {
+        return;
+      }
+
+      showLoading('Cargando datos de mantenimiento...');
+      
+      const fechaInicio = document.getElementById("fechaInicio").value;
+      const fechaFin = document.getElementById("fechaFin").value;
+      const lineaFilter = document.getElementById("filterLinea").value;
+      const turnoFilter = document.getElementById("filterTurno").value;
+      const busqueda = document.getElementById("searchInput").value;
+
+      // Construir URLs con parámetros usando fecha_desde y fecha_hasta
+      let prodUrl = "/produccion/";
+      let paradasUrl = "/paradas-turno/";
+      let fallasUrl = "/fallas-turno/";
+      
+      const params = new URLSearchParams();
+      if (fechaInicio) params.append('fecha_desde', fechaInicio);
+      if (fechaFin) params.append('fecha_hasta', fechaFin);
+      if (lineaFilter) params.append('linea_id', lineaFilter);
+      if (turnoFilter) params.append('turno_id', turnoFilter);
+      if (busqueda) params.append('busqueda', busqueda);
+
+      params.append('ordering', '-fecha');
+      params.append('page_size', '100');
+      
+      const queryString = params.toString();
+      console.log('Parámetros de búsqueda:', queryString);
+      
+      if (queryString) {
+        prodUrl += `?${queryString}`;
+        paradasUrl += `?${queryString}`;
+        fallasUrl += `?${queryString}`;
+      }
+
+      // Cargar datos en paralelo con manejo de errores individual
+      const [produccion, paradas, fallas] = await Promise.allSettled([
+        fetchAPI(prodUrl),
+        fetchAPI(paradasUrl),
+        fetchAPI(fallasUrl)
+      ]);
+
+      // Procesar resultados
+      produccionData = produccion.status === 'fulfilled' ? produccion.value : [];
+      paradasData = paradas.status === 'fulfilled' ? paradas.value : [];
+      fallasData = fallas.status === 'fulfilled' ? fallas.value : [];
+
+      // Verificar si tenemos datos
+      if (produccionData.length === 0 && paradasData.length === 0 && fallasData.length === 0) {
+        showError('No se encontraron datos para los filtros aplicados');
+        return;
+      }
+
+      // Renderizar componentes
+      renderizarOEE();
+      renderLineas();
+      renderResumenParadas();
+      renderCharts();
+
+      // Cargar líneas
+      const lineasCargadas = await cargarLineas();
+      if (!lineasCargadas) {
+          cargarLineasDesdeDatos();
+      }
+
+      
+      // Cargar opciones de filtro solo si es necesario
+      if (!document.getElementById('filterTurno').hasChildNodes() || 
+          document.getElementById('filterTurno').children.length <= 1) {
+        cargarOpcionesFiltro();
+      }
+      
+      actualizarTimestamp();
+      
+      // Cargar métricas de mantenimiento si hay datos
+      if (produccionData.length > 0 || paradasData.length > 0 || fallasData.length > 0) {
+        await cargarMetricasMantenimiento();
+      }
+      
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+      showError('Error al cargar los datos: ' + error.message);
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function renderLineas() {
+      const container = document.getElementById("lineasContainer");
+      const contador = document.getElementById("contadorLineas");
+      
+      if (!container || !contador) return;
+      
+      // Agrupar datos por línea
+      const lineasMap = {};
+      
+      produccionData.forEach(p => {
+        const lineaId = p.linea;
+        if (!lineasMap[lineaId]) {
+          lineasMap[lineaId] = {
+            id: lineaId,
+            nombre: p.linea_nombre,
+            produccion: 0,
+          meta: 0,
+          eficiencia: 0,
+          scrap: 0,
+          paradas: 0,
+          fallas: 0,
+          turnos: {}
+        };
+      }
+      // MODIFICACIÓN: Usar campos del endpoint /produccion/
+      lineasMap[lineaId].produccion += p.fabricacion_toneladas || 0;
+      lineasMap[lineaId].meta += p.meta_produccion || 0;
+      lineasMap[lineaId].scrap += p.fabricacion_scrap || 0;
+      lineasMap[lineaId].eficiencia = lineasMap[lineaId].meta ? 
+        (lineasMap[lineaId].produccion / lineasMap[lineaId].meta * 100).toFixed(1) : 0;
+      
+      // Organizar por turno
+      if (!lineasMap[lineaId].turnos[p.turno]) {
+        lineasMap[lineaId].turnos[p.turno] = {
+          nombre: p.turno_nombre,
+          produccion: 0,
+          meta: 0,
+          eficiencia: 0,
+          scrap: 0,
+          paradas: 0,
+          fallas: 0
+        };
+      }
+      lineasMap[lineaId].turnos[p.turno].produccion += p.fabricacion_toneladas || 0;
+      lineasMap[lineaId].turnos[p.turno].meta += p.meta_produccion || 0;
+      lineasMap[lineaId].turnos[p.turno].eficiencia = p.eficiencia || 0;
+      lineasMap[lineaId].turnos[p.turno].scrap += p.fabricacion_scrap || 0;
+    });
+
+    // Sumar paradas y fallas
+    paradasData.forEach(p => {
+      if (lineasMap[p.linea]) {
+        lineasMap[p.linea].paradas += p.duracion_minutos || 0;
+        if (lineasMap[p.linea].turnos[p.turno]) {
+          lineasMap[p.linea].turnos[p.turno].paradas += p.duracion_minutos || 0;
+        }
+      }
+    });
+
+    fallasData.forEach(f => {
+      if (lineasMap[f.linea]) {
+        lineasMap[f.linea].fallas += f.cantidad || 0;
+        if (lineasMap[f.linea].turnos[f.turno]) {
+          lineasMap[f.linea].turnos[f.turno].fallas += f.cantidad || 0;
+        }
+      }
+    });
+
+    container.innerHTML = '';
+    const lineasCount = Object.keys(lineasMap).length;
+    contador.textContent = lineasCount;
+
+    if (lineasCount === 0) {
+      container.innerHTML = `
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-inbox fa-3x mb-3"></i>
+          <p class="mb-0">No se encontraron datos</p>
+          <small>Intenta ajustar los filtros de búsqueda</small>
+        </div>
+      `;
+      return;
+    }
+
+    Object.values(lineasMap).forEach(linea => {
+      const div = document.createElement('div');
+      div.classList.add('list-item');
+      div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0 fw-bold">Línea ${linea.nombre}</h6>
+          <div class="d-flex gap-2">
+            <span class="badge bg-primary">Prod: ${linea.produccion.toLocaleString()} t</span>
+            <span class="badge bg-${linea.eficiencia >= 90 ? 'success' : linea.eficiencia >= 80 ? 'warning' : 'danger'}">
+              Efic: ${linea.eficiencia}%
+            </span>
+            <span class="badge bg-danger">Paradas: ${Math.round(linea.paradas)} min</span>
+            <span class="badge bg-warning text-dark">Fallas: ${linea.fallas}</span>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Turno</th>
+                <th>Producción</th>
+                <th>Meta</th>
+                <th>Eficiencia</th>
+                <th>Scrap</th>
+                <th>Paradas (min)</th>
+                <th>Fallas</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.values(linea.turnos).map(turno => `
+                <tr>
+                  <td>${turno.nombre}</td>
+                  <td>${turno.produccion.toLocaleString()} t</td>
+                  <td>${turno.meta.toLocaleString()} t</td>
+                  <td>
+                    <span class="badge bg-${turno.eficiencia >= 90 ? 'success' : turno.eficiencia >= 80 ? 'warning' : 'danger'}">
+                      ${turno.eficiencia}%
+                    </span>
+                  </td>
+                  <td>${turno.scrap.toLocaleString()} t</td>
+                  <td>${Math.round(turno.paradas)}</td>
+                  <td>${turno.fallas}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function renderResumenParadas() {
+    const container = document.getElementById("resumenParadas");
+    if (!container) return;
+    
+    container.innerHTML = '';
+
+    if (paradasData.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-4 text-muted">
+          <i class="fas fa-check fa-2x mb-2"></i>
+          <p class="mb-0 small">No hay paradas registradas</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Ordenar paradas por duración (descendente) y tomar las 10 principales
+    const paradasOrdenadas = [...paradasData]
+      .sort((a, b) => (b.duracion_minutos || 0) - (a.duracion_minutos || 0))
+      .slice(0, 10);
+
+    paradasOrdenadas.forEach(p => {
+      const div = document.createElement('div');
+      div.classList.add('list-item');
+      div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="flex-grow-1">
+            <h6 class="mb-1">${p.motivo || 'Sin motivo especificado'}</h6>
+            <div class="small text-muted">
+              <i class="fas fa-industry me-1"></i>Línea ${p.linea_nombre} 
+              <i class="fas fa-clock ms-2 me-1"></i>${p.turno_nombre}
+            </div>
+            ${p.descripcion ? `<div class="small mt-1">${p.descripcion}</div>` : ''}
+          </div>
+          <div class="text-end">
+            <span class="badge bg-danger">${p.duracion_minutos || 0} min</span>
+            <div class="small text-muted mt-1">
+              ${new Date(p.fecha).toLocaleDateString('es-ES')}
+            </div>
+          </div>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function renderCharts() {
+    renderChartProduccionLinea();
+    renderChartEficiencia();
+    renderChartParadas();
+    renderChartFallasTipo();
+  }
+
+  function renderChartProduccionLinea() {
+    const canvas = document.getElementById('chartProduccionLinea');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Agrupar producción por línea
+    const lineas = {};
+    produccionData.forEach(p => {
+      const linea = p.linea_nombre;
+      // MODIFICACIÓN: Usar fabricacion_toneladas en lugar de cantidad
+      lineas[linea] = (lineas[linea] || 0) + (p.fabricacion_toneladas || 0);
+    });
+
+    const labels = Object.keys(lineas);
+    const valores = Object.values(lineas);
+
+    if (chartInstances['produccionLinea']) {
+      chartInstances['produccionLinea'].destroy();
+    }
+
+    chartInstances['produccionLinea'] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Producción (t)',
+          data: valores,
+          backgroundColor: colorConfig.produccion,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Toneladas'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      }
+    });
+  }
+
+
+  function renderChartEficiencia() {
+    const canvas = document.getElementById('chartEficiencia');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Calcular eficiencia promedio por línea
+    const eficienciaPorLinea = {};
+    const conteoPorLinea = {};
+    
+    produccionData.forEach(p => {
+      const linea = p.linea_nombre;
+      if (!eficienciaPorLinea[linea]) {
+        eficienciaPorLinea[linea] = 0;
+        conteoPorLinea[linea] = 0;
+      }
+      eficienciaPorLinea[linea] += p.eficiencia || 0;
+      conteoPorLinea[linea]++;
+    });
+
+    const labels = Object.keys(eficienciaPorLinea);
+    const valores = labels.map(linea => 
+      (eficienciaPorLinea[linea] / conteoPorLinea[linea]).toFixed(1)
+    );
+
+    if (chartInstances['eficiencia']) {
+      chartInstances['eficiencia'].destroy();
+    }
+
+    chartInstances['eficiencia'] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Eficiencia (%)',
+          data: valores,
+          backgroundColor: colorConfig.eficiencia + '20',
+          borderColor: colorConfig.eficiencia,
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderChartParadas() {
+      const canvas = document.getElementById('chartParadas');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      
+      // Agrupar paradas por línea con cálculos detallados
+      const datosParadas = {};
+      const tiempoPlanificado = 480; // 8 horas = 480 minutos
+      
+      paradasData.forEach(p => {
+          const linea = p.linea_nombre;
+          if (!datosParadas[linea]) {
+              datosParadas[linea] = {
+                  tiempoTotal: 0,
+                  cantidadParadas: 0,
+                  motivos: {},
+                  porcentaje: 0
+              };
+          }
+          datosParadas[linea].tiempoTotal += p.duracion_minutos || 0;
+          datosParadas[linea].cantidadParadas += 1;
+          
+          // Agrupar por motivo
+          const motivo = p.motivo || 'Sin motivo especificado';
+          if (!datosParadas[linea].motivos[motivo]) {
+              datosParadas[linea].motivos[motivo] = 0;
+          }
+          datosParadas[linea].motivos[motivo] += p.duracion_minutos || 0;
+      });
+      
+      // Calcular porcentajes
+      Object.keys(datosParadas).forEach(linea => {
+          datosParadas[linea].porcentaje = (datosParadas[linea].tiempoTotal / tiempoPlanificado) * 100;
+      });
+
+      // Preparar datos para el gráfico
+      const lineas = Object.keys(datosParadas);
+      const tiemposTotales = lineas.map(linea => datosParadas[linea].tiempoTotal);
+      const porcentajes = lineas.map(linea => datosParadas[linea].porcentaje);
+      const cantidades = lineas.map(linea => datosParadas[linea].cantidadParadas);
+
+      // Colores para las barras basados en el porcentaje
+      const colores = porcentajes.map(p => {
+          if (p <= 5) return '#28a745';  // Verde: ≤5%
+          if (p <= 10) return '#ffc107'; // Amarillo: 5-10%
+          if (p <= 15) return '#fd7e14'; // Naranja: 10-15%
+          return '#dc3545';              // Rojo: >15%
+      });
+
+      // Destruir instancia anterior si existe
+      if (chartInstances['paradas']) {
+          chartInstances['paradas'].destroy();
+      }
+
+      chartInstances['paradas'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+              labels: lineas,
+              datasets: [
+                  {
+                      label: 'Tiempo Total (min)',
+                      data: tiemposTotales,
+                      backgroundColor: colores,
+                      borderColor: colores.map(color => color.replace('0.8', '1')),
+                      borderWidth: 2,
+                      yAxisID: 'y',
+                      order: 1
+                  },
+                  {
+                      label: 'Porcentaje del Turno',
+                      data: porcentajes,
+                      type: 'line',
+                      borderColor: '#4e73df',
+                      backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                      borderWidth: 3,
+                      pointRadius: 6,
+                      pointBackgroundColor: '#4e73df',
+                      pointBorderColor: '#fff',
+                      pointBorderWidth: 2,
+                      yAxisID: 'y1',
+                      order: 2,
+                      fill: false,
+                      tension: 0.4
+                  }
+              ]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                  mode: 'index',
+                  intersect: false
+              },
+              scales: {
+                  x: {
+                      title: {
+                          display: true,
+                          text: 'Líneas de Producción',
+                          font: {
+                              weight: 'bold'
+                          }
+                      },
+                      grid: {
+                          color: 'rgba(0, 0, 0, 0.05)'
+                      }
+                  },
+                  y: {
+                      type: 'linear',
+                      display: true,
+                      position: 'left',
+                      title: {
+                          display: true,
+                          text: 'Minutos de Parada',
+                          font: {
+                              weight: 'bold'
+                          }
+                      },
+                      beginAtZero: true,
+                      grid: {
+                          color: 'rgba(0, 0, 0, 0.05)'
+                      },
+                      ticks: {
+                          callback: function(value) {
+                              return value + ' min';
+                          }
+                      }
+                  },
+                  y1: {
+                      type: 'linear',
+                      display: true,
+                      position: 'right',
+                      title: {
+                          display: true,
+                          text: 'Porcentaje del Turno (%)',
+                          font: {
+                              weight: 'bold'
+                          }
+                      },
+                      beginAtZero: true,
+                      max: 100,
+                      grid: {
+                          drawOnChartArea: false,
+                      },
+                      ticks: {
+                          callback: function(value) {
+                              return value + '%';
+                          }
+                      }
+                  }
+              },
+              plugins: {
+                  legend: {
+                      position: 'top',
+                      labels: {
+                          usePointStyle: true,
+                          padding: 20
+                      }
+                  },
+                  tooltip: {
+                      callbacks: {
+                          label: function(context) {
+                              const datasetLabel = context.dataset.label || '';
+                              const value = context.parsed.y;
+                              const linea = context.label;
+                              
+                              if (context.datasetIndex === 0) {
+                                  // Dataset de barras (minutos)
+                                  const porcentaje = datosParadas[linea].porcentaje.toFixed(1);
+                                  const cantidad = datosParadas[linea].cantidadParadas;
+                                  return [
+                                      `${datasetLabel}: ${value} min`,
+                                      `Porcentaje: ${porcentaje}% del turno`,
+                                      `Cantidad de paradas: ${cantidad}`,
+                                      `Tiempo planificado: ${tiempoPlanificado} min`
+                                  ];
+                              } else {
+                                  // Dataset de línea (porcentaje)
+                                  return `${datasetLabel}: ${value.toFixed(1)}%`;
+                              }
+                          },
+                          afterBody: function(context) {
+                              // Mostrar los motivos principales después del tooltip principal
+                              const linea = context[0].label;
+                              const motivos = datosParadas[linea].motivos;
+                              
+                              // Ordenar motivos por tiempo descendente y tomar los 3 principales
+                              const motivosOrdenados = Object.entries(motivos)
+                                  .sort((a, b) => b[1] - a[1])
+                                  .slice(0, 3);
+                              
+                              if (motivosOrdenados.length === 0) return [];
+                              
+                              const lines = ['', 'Motivos principales:'];
+                              motivosOrdenados.forEach(([motivo, tiempo], index) => {
+                                  const porcentajeMotivo = ((tiempo / datosParadas[linea].tiempoTotal) * 100).toFixed(1);
+                                  lines.push(`• ${motivo}: ${tiempo} min (${porcentajeMotivo}%)`);
+                              });
+                              
+                              return lines;
+                          }
+                      }
+                  },
+                  annotation: {
+                      annotations: {
+                          meta5: {
+                              type: 'line',
+                              yMin: 5,
+                              yMax: 5,
+                              yScaleID: 'y1',
+                              borderColor: '#28a745',
+                              borderWidth: 2,
+                              borderDash: [5, 5],
+                              label: {
+                                  display: true,
+                                  content: 'Meta: ≤5%',
+                                  position: 'start',
+                                  backgroundColor: '#28a745',
+                                  color: 'white'
+                              }
+                          },
+                          zonaCritica: {
+                              type: 'box',
+                              yScaleID: 'y1',
+                              yMin: 15,
+                              yMax: 100,
+                              backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                              borderColor: 'rgba(220, 53, 69, 0.3)',
+                              borderWidth: 1,
+                              label: {
+                                  display: true,
+                                  content: 'Zona Crítica',
+                                  position: 'end',
+                                  backgroundColor: '#dc3545',
+                                  color: 'white'
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+      });
+
+      // Actualizar también la tarjeta de métricas de paradas si existe
+      actualizarMetricasParadas(datosParadas, tiempoPlanificado);
+  }
+
+  // Función para actualizar métricas resumen de paradas
+  function actualizarMetricasParadas(datosParadas, tiempoPlanificado) {
+      const container = document.getElementById('metricas-paradas-container');
+      if (!container) return;
+
+      // Calcular métricas generales
+      const tiempoTotalParadas = Object.values(datosParadas).reduce((sum, linea) => sum + linea.tiempoTotal, 0);
+      const porcentajeTotal = (tiempoTotalParadas / tiempoPlanificado) * 100;
+      const totalParadas = Object.values(datosParadas).reduce((sum, linea) => sum + linea.cantidadParadas, 0);
+      
+      // Encontrar línea con más paradas
+      const lineaCritica = Object.entries(datosParadas).reduce((max, [linea, datos]) => {
+          return datos.tiempoTotal > max.tiempoTotal ? { linea, ...datos } : max;
+      }, { linea: '', tiempoTotal: 0 });
+
+      // Encontrar motivo más común
+      const todosMotivos = {};
+      Object.values(datosParadas).forEach(linea => {
+          Object.entries(linea.motivos).forEach(([motivo, tiempo]) => {
+              if (!todosMotivos[motivo]) todosMotivos[motivo] = 0;
+              todosMotivos[motivo] += tiempo;
+          });
+      });
+      
+      const motivoPrincipal = Object.entries(todosMotivos).reduce((max, [motivo, tiempo]) => {
+          return tiempo > max.tiempo ? { motivo, tiempo } : max;
+      }, { motivo: '', tiempo: 0 });
+
+      const metricas = [
+          {
+              titulo: 'Tiempo Total Paradas',
+              valor: `${Math.round(tiempoTotalParadas)} min`,
+              subtitulo: `${porcentajeTotal.toFixed(1)}% del tiempo planificado`,
+              icono: 'fas fa-stopwatch',
+              color: porcentajeTotal <= 5 ? 'success' : 
+                    porcentajeTotal <= 10 ? 'warning' : 'danger'
+          },
+          {
+              titulo: 'Total de Paradas',
+              valor: totalParadas,
+              subtitulo: 'Eventos registrados',
+              icono: 'fas fa-pause-circle',
+              color: 'info'
+          },
+          {
+              titulo: 'Línea Más Afectada',
+              valor: lineaCritica.linea || 'N/A',
+              subtitulo: `${lineaCritica.tiempoTotal} min (${lineaCritica.porcentaje?.toFixed(1)}%)`,
+              icono: 'fas fa-industry',
+              color: 'warning'
+          },
+          {
+              titulo: 'Motivo Principal',
+              valor: motivoPrincipal.motivo.substring(0, 15) + (motivoPrincipal.motivo.length > 15 ? '...' : ''),
+              subtitulo: `${motivoPrincipal.tiempo} min total`,
+              icono: 'fas fa-exclamation-triangle',
+              color: 'primary'
+          }
+      ];
+
+      container.innerHTML = metricas.map(metrica => `
+          <div class="col">
+              <div class="card metric-card h-100 border-0 shadow-sm">
+                  <div class="card-body text-center p-2">
+                      <div class="icon-wrapper bg-${metrica.color} bg-opacity-10 rounded-circle mx-auto mb-2 p-2">
+                          <i class="${metrica.icono} fs-5 text-${metrica.color}"></i>
+                      </div>
+                      <h5 class="mb-1 fw-bold">${metrica.valor}</h5>
+                      <small class="text-muted">${metrica.titulo}</small>
+                      ${metrica.subtitulo ? `<div class="x-small text-muted mt-1">${metrica.subtitulo}</div>` : ''}
+                  </div>
+              </div>
+          </div>
+      `).join('');
+  }
+
+  // Función para renderizar el gráfico de fallas mejorado
+  function renderChartFallasTipo() {
+      const canvas = document.getElementById('chartFallasTipo');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      
+      // Agrupar fallas por tipo y gravedad
+      const fallasPorTipo = {};
+      const fallasPorGravedad = {};
+      let totalFallas = 0;
+      
+      fallasData.forEach(f => {
+          const tipo = f.tipo;
+          const gravedad = f.gravedad || 'moderada';
+          
+          // Agrupar por tipo
+          if (!fallasPorTipo[tipo]) {
+              fallasPorTipo[tipo] = {
+                  total: 0,
+                  porGravedad: {},
+                  color: tipoFallaConfig[tipo]?.color || '#6c757d',
+                  label: tipoFallaConfig[tipo]?.label || tipo
+              };
+          }
+          fallasPorTipo[tipo].total += f.cantidad || 1;
+          fallasPorTipo[tipo].porGravedad[gravedad] = (fallasPorTipo[tipo].porGravedad[gravedad] || 0) + (f.cantidad || 1);
+          
+          // Agrupar por gravedad
+          if (!fallasPorGravedad[gravedad]) {
+              fallasPorGravedad[gravedad] = 0;
+          }
+          fallasPorGravedad[gravedad] += f.cantidad || 1;
+          
+          totalFallas += f.cantidad || 1;
+      });
+
+      // Ordenar tipos por cantidad (descendente)
+      const tiposOrdenados = Object.keys(fallasPorTipo).sort((a, b) => fallasPorTipo[b].total - fallasPorTipo[a].total);
+
+      const labels = tiposOrdenados.map(tipo => fallasPorTipo[tipo].label);
+      const valores = tiposOrdenados.map(tipo => fallasPorTipo[tipo].total);
+      const colores = tiposOrdenados.map(tipo => fallasPorTipo[tipo].color);
+
+      // Datos para gráfico apilado por gravedad
+      const datasets = [];
+      const gravedades = ['leve', 'moderada', 'grave', 'critica'];
+      
+      gravedades.forEach(gravedad => {
+          const data = tiposOrdenados.map(tipo => fallasPorTipo[tipo].porGravedad[gravedad] || 0);
+          if (data.some(val => val > 0)) {
+              datasets.push({
+                  label: gravedadConfig[gravedad].label,
+                  data: data,
+                  backgroundColor: gravedadConfig[gravedad].color,
+                  borderColor: gravedadConfig[gravedad].color,
+                  borderWidth: 1
+              });
+          }
+      });
+
+      // Destruir instancia anterior si existe
+      if (chartInstances['fallasTipo']) {
+          chartInstances['fallasTipo'].destroy();
+      }
+
+      // Crear gráfico de barras apiladas
+      chartInstances['fallasTipo'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+              labels: labels,
+              datasets: datasets.length > 0 ? datasets : [{
+                  label: 'Fallas',
+                  data: valores,
+                  backgroundColor: colores,
+                  borderColor: colores.map(color => color.replace('0.8', '1')),
+                  borderWidth: 1
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  x: {
+                      title: {
+                          display: true,
+                          text: 'Tipos de Falla',
+                          font: {
+                              weight: 'bold'
+                          }
+                      },
+                      grid: {
+                          color: 'rgba(0, 0, 0, 0.05)'
+                      }
+                  },
+                  y: {
+                      beginAtZero: true,
+                      title: {
+                          display: true,
+                          text: 'Cantidad de Fallas',
+                          font: {
+                              weight: 'bold'
+                          }
+                      },
+                      grid: {
+                          color: 'rgba(0, 0, 0, 0.05)'
+                      }
+                  }
+              },
+              plugins: {
+                  legend: {
+                      position: 'top',
+                      labels: {
+                          usePointStyle: true,
+                          padding: 20
+                      }
+                  },
+                  tooltip: {
+                      callbacks: {
+                          label: function(context) {
+                              const label = context.dataset.label || '';
+                              const value = context.parsed.y;
+                              const tipo = context.label;
+                              const totalTipo = fallasPorTipo[tiposOrdenados[context.dataIndex]]?.total || 0;
+                              const porcentaje = totalFallas > 0 ? ((value / totalFallas) * 100).toFixed(1) : 0;
+                              
+                              if (datasets.length > 0) {
+                                  // Gráfico apilado
+                                  const porcentajeTipo = totalTipo > 0 ? ((value / totalTipo) * 100).toFixed(1) : 0;
+                                  return [
+                                      `${label}: ${value} fallas`,
+                                      `Del total de ${tipo}: ${porcentajeTipo}%`,
+                                      `Del total general: ${porcentaje}%`
+                                  ];
+                              } else {
+                                  // Gráfico simple
+                                  return `${label}: ${value} fallas (${porcentaje}%)`;
+                              }
+                          },
+                          afterBody: function(context) {
+                              const tipo = context[0].label;
+                              const tipoKey = tiposOrdenados[context[0].dataIndex];
+                              const datosTipo = fallasPorTipo[tipoKey];
+                              
+                              if (!datosTipo) return [];
+                              
+                              const lines = [];
+                              lines.push(`Descripción: ${tipoFallaConfig[tipoKey]?.description || 'Sin descripción'}`);
+                              
+                              if (datasets.length > 0) {
+                                  lines.push('Distribución por gravedad:');
+                                  Object.entries(datosTipo.porGravedad).forEach(([gravedad, cantidad]) => {
+                                      const porcentaje = datosTipo.total > 0 ? ((cantidad / datosTipo.total) * 100).toFixed(1) : 0;
+                                      lines.push(`• ${gravedadConfig[gravedad]?.label}: ${cantidad} (${porcentaje}%)`);
+                                  });
+                              }
+                              
+                              return lines;
+                          }
+                      }
+                  }
+              }
+          }
+      });
+
+      // Actualizar métricas de fallas
+      actualizarMetricasFallas(fallasPorTipo, fallasPorGravedad, totalFallas);
+  }
+
+  // Función para actualizar métricas de fallas
+  function actualizarMetricasFallas(fallasPorTipo, fallasPorGravedad, totalFallas) {
+      const container = document.getElementById('metricas-fallas-container');
+      if (!container) return;
+
+      // Calcular métricas
+      const tiposCount = Object.keys(fallasPorTipo).length;
+      
+      // Tipo más frecuente
+      let tipoMasFrecuente = '';
+      let maxFallas = 0;
+      Object.entries(fallasPorTipo).forEach(([tipo, datos]) => {
+          if (datos.total > maxFallas) {
+              maxFallas = datos.total;
+              tipoMasFrecuente = tipo;
+          }
+      });
+
+      // Gravedad más crítica
+      let gravedadCritica = '';
+      let maxGravedad = 0;
+      Object.entries(fallasPorGravedad).forEach(([gravedad, cantidad]) => {
+          if (cantidad > maxGravedad) {
+              maxGravedad = cantidad;
+              gravedadCritica = gravedad;
+          }
+      });
+
+      // Fallas críticas (grave + crítica)
+      const fallasCriticas = (fallasPorGravedad['grave'] || 0) + (fallasPorGravedad['critica'] || 0);
+      const porcentajeCriticas = totalFallas > 0 ? ((fallasCriticas / totalFallas) * 100).toFixed(1) : 0;
+
+      const metricas = [
+          {
+              titulo: 'Total Fallas',
+              valor: totalFallas,
+              subtitulo: 'Total registradas',
+              icono: 'fas fa-bug',
+              color: totalFallas === 0 ? 'success' : 
+                    totalFallas < 10 ? 'info' : 
+                    totalFallas < 20 ? 'warning' : 'danger'
+          },
+          {
+              titulo: 'Tipo Más Frecuente',
+              valor: tipoFallaConfig[tipoMasFrecuente]?.label || tipoMasFrecuente,
+              subtitulo: `${maxFallas} fallas`,
+              icono: 'fas fa-chart-bar',
+              color: 'primary'
+          },
+          {
+              titulo: 'Fallas Críticas',
+              valor: fallasCriticas,
+              subtitulo: `${porcentajeCriticas}% del total`,
+              icono: 'fas fa-exclamation-triangle',
+              color: fallasCriticas === 0 ? 'success' : 
+                    fallasCriticas < 5 ? 'warning' : 'danger'
+          },
+          {
+              titulo: 'Tipos Diferentes',
+              valor: tiposCount,
+              subtitulo: 'Categorías identificadas',
+              icono: 'fas fa-list',
+              color: 'info'
+          }
+      ];
+
+      container.innerHTML = metricas.map(metrica => `
+          <div class="col">
+              <div class="card metric-card h-100 border-0 shadow-sm">
+                  <div class="card-body text-center p-2">
+                      <div class="icon-wrapper bg-${metrica.color} bg-opacity-10 rounded-circle mx-auto mb-2 p-2">
+                          <i class="${metrica.icono} fs-5 text-${metrica.color}"></i>
+                      </div>
+                      <h5 class="mb-1 fw-bold">${metrica.valor}</h5>
+                      <small class="text-muted">${metrica.titulo}</small>
+                      ${metrica.subtitulo ? `<div class="x-small text-muted mt-1">${metrica.subtitulo}</div>` : ''}
+                  </div>
+              </div>
+          </div>
+      `).join('');
+  }
+
+function actualizarMetricasFallas(fallasPorTipo, fallasPorGravedad, totalFallas) {
+      const container = document.getElementById('metricas-fallas-container');
+      if (!container) return;
+
+      // Calcular métricas
+      const tiposCount = Object.keys(fallasPorTipo).length;
+      
+      // Tipo más frecuente
+      let tipoMasFrecuente = '';
+      let maxFallas = 0;
+      Object.entries(fallasPorTipo).forEach(([tipo, datos]) => {
+          if (datos.total > maxFallas) {
+              maxFallas = datos.total;
+              tipoMasFrecuente = tipo;
+          }
+      });
+
+      // Gravedad más crítica
+      let gravedadCritica = '';
+      let maxGravedad = 0;
+      Object.entries(fallasPorGravedad).forEach(([gravedad, cantidad]) => {
+          if (cantidad > maxGravedad) {
+              maxGravedad = cantidad;
+              gravedadCritica = gravedad;
+          }
+      });
+
+      // Fallas críticas (grave + crítica)
+      const fallasCriticas = (fallasPorGravedad['grave'] || 0) + (fallasPorGravedad['critica'] || 0);
+      const porcentajeCriticas = totalFallas > 0 ? ((fallasCriticas / totalFallas) * 100).toFixed(1) : 0;
+
+      const metricas = [
+          {
+              titulo: 'Total Fallas',
+              valor: totalFallas,
+              subtitulo: 'Total registradas',
+              icono: 'fas fa-bug',
+              color: totalFallas === 0 ? 'success' : 
+                    totalFallas < 10 ? 'info' : 
+                    totalFallas < 20 ? 'warning' : 'danger'
+          },
+          {
+              titulo: 'Tipo Más Frecuente',
+              valor: tipoFallaConfig[tipoMasFrecuente]?.label || tipoMasFrecuente,
+              subtitulo: `${maxFallas} fallas`,
+              icono: 'fas fa-chart-bar',
+              color: 'primary'
+          },
+          {
+              titulo: 'Fallas Críticas',
+              valor: fallasCriticas,
+              subtitulo: `${porcentajeCriticas}% del total`,
+              icono: 'fas fa-exclamation-triangle',
+              color: fallasCriticas === 0 ? 'success' : 
+                    fallasCriticas < 5 ? 'warning' : 'danger'
+          },
+          {
+              titulo: 'Tipos Diferentes',
+              valor: tiposCount,
+              subtitulo: 'Categorías identificadas',
+              icono: 'fas fa-list',
+              color: 'info'
+          }
+      ];
+
+      container.innerHTML = metricas.map(metrica => `
+          <div class="col">
+              <div class="card metric-card h-100 border-0 shadow-sm">
+                  <div class="card-body text-center p-2">
+                      <div class="icon-wrapper bg-${metrica.color} bg-opacity-10 rounded-circle mx-auto mb-2 p-2">
+                          <i class="${metrica.icono} fs-5 text-${metrica.color}"></i>
+                      </div>
+                      <h5 class="mb-1 fw-bold">${metrica.valor}</h5>
+                      <small class="text-muted">${metrica.titulo}</small>
+                      ${metrica.subtitulo ? `<div class="x-small text-muted mt-1">${metrica.subtitulo}</div>` : ''}
+                  </div>
+              </div>
+          </div>
+      `).join('');
+  }
+
+  function cargarOpcionesFiltro() {
+    try {
+      // Cargar turnos
+      const selectTurno = document.getElementById('filterTurno');
+      if (!selectTurno) {
+        console.warn('Elemento filterTurno no encontrado');
+        return;
+      }
+      
+      const turnos = [...new Set([
+        ...produccionData.map(p => p.turno),
+        ...paradasData.map(p => p.turno),
+        ...fallasData.map(f => f.turno)
+      ])].filter(t => t);
+      
+      selectTurno.innerHTML = '<option value="">Todos los Turnos</option>';
+      
+      turnos.forEach(turnoId => {
+        const turno = produccionData.find(p => p.turno === turnoId) || 
+                     paradasData.find(p => p.turno === turnoId) || 
+                     fallasData.find(f => f.turno === turnoId);
+        if (turno && turno.turno_nombre) {
+          const option = document.createElement('option');
+          option.value = turnoId;
+          option.textContent = turno.turno_nombre;
+          selectTurno.appendChild(option);
+        }
+      });
+    } catch (error) {
+      console.error('Error en cargarOpcionesFiltro:', error);
+    }
+  }
+
+  function aplicarFiltros() {
+    cargarDatos();
+  }
+
+  function limpiarFiltros() {
+    const searchInput = document.getElementById('searchInput');
+    const filterLinea = document.getElementById('filterLinea');
+    const filterTurno = document.getElementById('filterTurno');
+    
+    if (searchInput) searchInput.value = '';
+    if (filterLinea) filterLinea.value = '';
+    if (filterTurno) filterTurno.value = '';
+    
+    // Restablecer el rango de fechas por defecto
+    establecerFechasPorDefecto();
+    
+    cargarDatos();
+  }
+
+  function exportarDatos() {
+    const fechaInicio = document.getElementById("fechaInicio").value;
+    const fechaFin = document.getElementById("fechaFin").value;
+    
+    alert(`Exportando datos del ${fechaInicio} al ${fechaFin} - Funcionalidad en desarrollo`);
+  }
+
+  function changeChartType(chartId, type) {
+    if (chartInstances[chartId]) {
+      chartInstances[chartId].destroy();
+    }
+    
+    console.log(`Cambiando gráfico ${chartId} a tipo ${type}`);
+    
+    switch(chartId) {
+      case 'chartProduccionLinea':
+        renderChartProduccionLinea();
+        break;
+      case 'chartEficiencia':
+        renderChartEficiencia();
+        break;
+    }
+  }
+
+  // Funciones auxiliares
+  function showLoading(message) {
+    console.log('Loading:', message);
+    // Podrías implementar un spinner real aquí
+    const loadingElement = document.getElementById('loadingIndicator');
+    if (loadingElement) {
+      loadingElement.style.display = 'block';
+    }
+  }
+
+  function hideLoading() {
+    console.log('Loading complete');
+    const loadingElement = document.getElementById('loadingIndicator');
+    if (loadingElement) {
+      loadingElement.style.display = 'none';
+    }
+  }
+
+  function showError(message) {
+    // En lugar de alert, podrías usar un toast o modal más elegante
+    console.error('Error:', message);
+    
+    // Crear notificación toast si no existe
+    let toast = document.getElementById('errorToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'errorToast';
+      toast.className = 'position-fixed top-0 end-0 p-3';
+      toast.style.zIndex = '9999';
+      toast.innerHTML = `
+          <div class="toast align-items-center text-white bg-danger border-0" role="alert">
+              <div class="d-flex">
+                  <div class="toast-body">${message}</div>
+                  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+              </div>
+          </div>
+      `;
+      document.body.appendChild(toast);
+    }
+    
+    // Mostrar toast
+    const bsToast = new bootstrap.Toast(toast.querySelector('.toast'));
+    bsToast.show();
+  }
+
+  // Inicialización
+  document.addEventListener("DOMContentLoaded", function() {
+    try {
+      // Establecer fechas por defecto al cargar la página
+      establecerFechasPorDefecto();
+      
+      // Cargar datos iniciales
+      cargarDatos();
+      
+      // Auto-actualización cada 2 minutos
+      setInterval(cargarDatos, 120000);
+      
+      // Búsqueda en tiempo real con debounce
+      let searchTimeout;
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(aplicarFiltros, 500);
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error en inicialización:', error);
+      showError('Error al inicializar la aplicación: ' + error.message);
+    }
+  });
+</script>
+
+<style>
+
+  .bg-orange {
+      background-color: #fd7e14 !important;
+  }
+
+  .chart-container-medium {
+      position: relative;
+      height: 250px;
+      width: 100%;
+  }
+
+  .metric-card {
+      transition: all 0.3s ease;
+  }
+
+  .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  }
+
+  /* Mejoras para tooltips del gráfico */
+  .chartjs-tooltip {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1px solid #e3e6f0 !important;
+      border-radius: 0.35rem !important;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  }
+
+  /* Estilos para anotaciones del gráfico */
+  .chart-annotation-line {
+      stroke-dasharray: 5, 5;
+  }
+
+  .chart-annotation-box {
+      opacity: 0.1;
+  }
+
+  .oee-trend-line {
+    stroke-width: 3;
+    transition: opacity 0.3s ease;
+  }
+
+  .oee-meta-line {
+    stroke-dasharray: 5, 5;
+    stroke: #dc3545;
+  }
+
+  .chart-legend-custom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .legend-item:hover {
+    background-color: #f8f9fa;
+  }
+
+  .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    margin-right: 6px;
+  }
+
+  .legend-text {
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  /* Zonas de color de fondo para el gráfico OEE */
+  .oee-zone-excelent { background-color: rgba(40, 167, 69, 0.05); }
+  .oee-zone-good { background-color: rgba(255, 193, 7, 0.05); }
+  .oee-zone-regular { background-color: rgba(253, 126, 20, 0.05); }
+  .oee-zone-poor { background-color: rgba(220, 53, 69, 0.05); }
+  
+  .icon-wrapper {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .list-item {
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .list-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: var(--secondary-color);
+  }
+
+  .list-item:last-child {
+    border-bottom: none;
+  }
+
+  .enhanced-list {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  .x-small {
+    font-size: 0.7rem;
+  }
+
+  .chart-container {
+    position: relative;
+    height: 250px;
+    width: 100%;
+  }
+  
+  .chart-container-medium {
+    height: 250px;
+  }
+  
+  .chart-container-large {
+    height: 300px;
+  }
+  
+  .oee-card {
+    background: linear-gradient(135deg, #4e73df, #2a4cb3);
+    color: white;
+  }
+  
+  .oee-score {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  
+  .collapsible-panel {
+    transition: all 0.3s ease;
+  }
+  
+  .collapsible-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  
+  .collapsed .collapsible-content {
+    max-height: 0;
+  }
+  
+  .toggle-btn {
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .toggle-btn:hover {
+    opacity: 0.8;
+  }
+
+  /* Estilos para métricas de mantenimiento */
+  .metric-card {
+    transition: transform 0.2s ease;
+  }
+
+  .metric-card:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Estilos para alertas */
+  .alert-item {
+    border-left: 4px solid;
+    border-radius: 4px;
+    margin: 2px;
+  }
+
+  .border-danger { border-left-color: #dc3545; }
+  .border-warning { border-left-color: #ffc107; }
+  .border-info { border-left-color: #0dcaf0; }
+  .border-secondary { border-left-color: #6c757d; }
+
+  .bg-danger.bg-opacity-10 { background-color: rgba(220, 53, 69, 0.1); }
+  .bg-warning.bg-opacity-10 { background-color: rgba(255, 193, 7, 0.1); }
+  .bg-info.bg-opacity-10 { background-color: rgba(13, 202, 240, 0.1); }
+  .bg-secondary.bg-opacity-10 { background-color: rgba(108, 117, 125, 0.1); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .enhanced-list {
+      max-height: 400px;
+    }
+  }
+
+  /* Ajustes para tablas */
+  .table th {
+    font-size: 0.8rem;
+    border-top: none;
+  }
+
+  .table td {
+    font-size: 0.85rem;
+    vertical-align: middle;
+  }
+</style>
+{% endblock %}

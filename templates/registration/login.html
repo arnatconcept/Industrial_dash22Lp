@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Producción</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-bg: #f8f9fa;
+            --dark-bg: #34495e;
+            --sidebar-width: 220px;
+            --navbar-height: 60px;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        body {
+            background-color: #f5f7f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            padding-top: var(--navbar-height);
+        }
+        
+        /* ===== NAVBAR COMPACTO ===== */
+        .navbar {
+            min-height: var(--navbar-height);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-bg) 100%) !important;
+            border-bottom: 1px solid #465c7a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 0.4rem 1rem;
+        }
+
+        .navbar-brand {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .navbar-nav .nav-link {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+            border-radius: 4px;
+            margin: 0 1px;
+            transition: var(--transition);
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+        }
+
+        .user-info .small {
+            font-size: 0.85rem;
+        }
+
+        .user-info .x-small {
+            font-size: 0.7rem;
+        }
+
+        /* ===== SIDEBAR COMPACTO ===== */
+        .sidebar {
+            background-color: var(--dark-bg);
+            color: white;
+            min-height: calc(100vh - var(--navbar-height));
+            position: sticky;
+            top: var(--navbar-height);
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.8rem 1rem;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: var(--secondary-color);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-section {
+            padding: 0.5rem 0;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 0 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-user-info {
+            padding: 0.75rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* ===== COMPONENTES ===== */
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .kpi-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem;
+        }
+        
+        .status-badge {
+            padding: 0.35rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .recent-item {
+            border-left: 3px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .recent-item:hover {
+            background-color: #f8f9fa;
+            border-left-color: var(--secondary-color);
+        }
+
+        /* ===== LOGIN STYLES MEJORADOS ===== */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: float 20s infinite linear;
+            pointer-events: none;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-50px, -50px) rotate(360deg); }
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 440px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.25),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 2;
+        }
+
+        .login-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 
+                0 35px 60px -12px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1a2530 100%);
+            color: white;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .login-header h4 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-body {
+            padding: 2.5rem 2rem;
+            position: relative;
+        }
+
+        .form-group {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 1rem 1rem 1rem 3rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .form-control:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 
+                0 0 0 3px rgba(52, 152, 219, 0.1),
+                0 4px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .form-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            transition: all 0.3s ease;
+            z-index: 3;
+        }
+
+        .form-control:focus + .form-icon {
+            color: var(--secondary-color);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #2980b9 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-login:hover::before {
+            left: 100%;
+        }
+
+        .btn-login:active {
+            transform: translateY(-1px);
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .login-footer p {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .floating-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .floating-element {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: floatElement 15s infinite linear;
+        }
+
+        .floating-element:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .floating-element:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            top: 60%;
+            right: 10%;
+            animation-delay: -5s;
+        }
+
+        .floating-element:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: -10s;
+        }
+
+        @keyframes floatElement {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            33% {
+                transform: translateY(-30px) rotate(120deg);
+            }
+            66% {
+                transform: translateY(15px) rotate(240deg);
+            }
+        }
+
+        /* ===== LAYOUT RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: var(--navbar-height);
+                z-index: 1000;
+                height: calc(100vh - var(--navbar-height));
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .login-card {
+                max-width: 90%;
+                margin: 20px;
+            }
+
+            .login-body {
+                padding: 2rem 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-header {
+                padding: 2rem 1.5rem;
+            }
+
+            .login-body {
+                padding: 1.5rem 1rem;
+            }
+
+            .form-control {
+                padding: 0.875rem 0.875rem 0.875rem 2.5rem;
+            }
+
+            .form-icon {
+                left: 0.875rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Section -->
+    <div id="login-section" class="login-container">
+        <!-- Elementos flotantes de fondo -->
+        <div class="floating-elements">
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+            <div class="floating-element"></div>
+        </div>
+
+        <div class="login-card">
+            <div class="login-header">
+                <h4><i class="fas fa-industry me-2"></i>Sistema de Producción</h4>
+                <p class="mb-0">Ingrese sus credenciales para continuar</p>
+            </div>
+            <div class="login-body">
+                <form id="login-form">
+                    <div class="form-group">
+                        <i class="fas fa-user form-icon"></i>
+                        <input type="text" class="form-control" id="username" placeholder="Nombre de usuario" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <i class="fas fa-lock form-icon"></i>
+                        <input type="password" class="form-control" id="password" placeholder="Contraseña" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-login w-100">
+                        <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+                    </button>
+                </form>
+                <div id="login-error" class="alert alert-danger mt-3 hidden" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span id="error-message">Error en las credenciales. Intente nuevamente.</span>
+                </div>
+                
+                <div class="login-footer">
+                    <p class="text-muted">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        Sistema seguro · v2.0
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" class="hidden">
+        <!-- Navbar (igual a base.html) -->
+        <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+            <div class="container-fluid">
+                <!-- Logo y Nombre -->
+                <a class="navbar-brand d-flex align-items-center fw-bold" href="#">
+                    <i class="fas fa-industry me-2 text-warning"></i>
+                    <span class="d-none d-sm-inline">Sistema de Gestión Industrial</span>
+                    <span class="d-inline d-sm-none">SGI</span>
+                </a>
+
+                <!-- Botón toggle para móviles -->
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Botón para toggle del sidebar -->
+                <button class="btn btn-outline-light btn-sm ms-2 d-lg-none" id="toggle-sidebar" title="Mostrar/ocultar menú">
+                    <i class="fas fa-bars"></i>
+                </button>
+
+                <!-- Navegación principal -->
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <!-- Navegación rápida - Solo en desktop -->
+                    <ul class="navbar-nav me-auto d-none d-lg-flex">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" onclick="showDashboard()">
+                                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-cogs me-1"></i> Producción
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-tools me-1"></i> Mantenimiento
+                            </a>
+                        </li>
+                    </ul>
+
+                    <!-- Información del sistema -->
+                    <div class="navbar-text d-none d-md-block me-3">
+                        <small class="text-light">
+                            <i class="fas fa-circle text-success me-1"></i>
+                            <span id="system-status">En línea</span>
+                        </small>
+                    </div>
+
+                    <!-- Usuario y dropdown -->
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center py-0" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <div class="user-avatar me-2 d-flex align-items-center">
+                                    <i class="fas fa-user-circle text-light"></i>
+                                </div>
+                                <div class="user-info d-none d-md-block">
+                                    <div class="fw-semibold small" id="navbar-username">Usuario</div>
+                                    <div class="x-small text-light opacity-75" id="navbar-role">Sistema</div>
+                                </div>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li class="dropdown-header">
+                                    <div class="fw-bold" id="dropdown-username">Usuario</div>
+                                    <small class="text-muted" id="dropdown-email">Sistema</small>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="fas fa-user me-2 text-primary"></i>Mi Perfil
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="fas fa-cog me-2 text-secondary"></i>Configuración
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" onclick="logout()">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid">
+            <div class="row">
+                 
+
+                <div class="col-lg-2 col-md-3 p-0">
+                    <div class="sidebar">
+                        <ul class="nav flex-column">
+                            <!-- Dashboard Principal -->
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.resolver_match.url_name == 'inventario_dashboard' %}active{% endif %}" href="{% url 'inventario_dashboard' %}">
+                                    <i class="fas fa-tachometer-alt"></i> Inventario
+                                </a>
+                            </li>
+                            
+                            <!-- Producción -->
+                            <li class="nav-item">
+                                <a class="nav-link {% if 'produccion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'produccion_dashboard' %}">
+                                    <i class="fas fa-cogs"></i> Producción
+                                </a>
+                            </li>
+                            
+                            <!-- Mantenimiento -->
+                            <li class="nav-item">
+                                <a class="nav-link {% if 'mantenimiento' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'mantenimiento_dashboard' %}">
+                                    <i class="fas fa-tools"></i> Mantenimiento
+                                </a>
+                            </li>
+                            
+                            <!-- Órdenes de Trabajo -->
+                            <li class="nav-item">
+                                <a class="nav-link {% if 'ordenes' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'ordenes_dashboard' %}">
+                                    <i class="fas fa-clipboard-list"></i> Órdenes de Trabajo
+                                </a>
+                            </li>
+                            
+                            <!-- Fallas por Turno -->
+                            <li class="nav-item">
+                                <a class="nav-link {% if 'fallas' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'dashboard_fallas' %}">
+                                    <i class="fas fa-exclamation-triangle"></i> Fallas por Turno
+                                </a>
+                            </li>
+                            
+                            <div class="sidebar-section">
+                                <div class="sidebar-title">ANÁLISIS</div>
+                                
+                                <!-- Reportes -->
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#">
+                                        <i class="fas fa-chart-line"></i> Reportes
+                                    </a>
+                                </li>
+                                
+                                <!-- Alertas -->
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#">
+                                        <i class="fas fa-bell"></i> Alertas
+                                        <span class="badge bg-danger badge-sm ms-1">5</span>
+                                    </a>
+                                </li>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <div class="sidebar-title">SISTEMA</div>
+                                
+                                <!-- Configuración -->
+                                <li class="nav-item">
+                                    <a class="nav-link" href="#">
+                                        <i class="fas fa-cog"></i> Configuración
+                                    </a>
+                                </li>
+                            </div>
+                        </ul>
+                        
+                        <!-- Información del usuario en la parte inferior del sidebar -->
+                        <div class="sidebar-user-info">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-user-circle text-light"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-2">
+                                    <div class="text-white small fw-bold">{{ user.username }}</div>
+                                    <div class="text-muted small" id="sidebar-time">{% now "H:i" %}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Main Content -->
+                <div class="col-lg-10 col-md-9 py-4 main-content">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h1 class="mb-0">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard Principal
+                        </h1>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-warning fs-6 p-2 me-3">
+                                <i class="fas fa-clock me-1"></i><span id="lastUpdate">Actualizado ahora</span>
+                            </span>
+                            <button class="btn btn-sm btn-outline-primary" onclick="initializeDashboard()">
+                                <i class="fas fa-sync-alt"></i> Actualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards -->
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card text-center">
+                                <div class="card-body">
+                                    <h5>Unidades Producidas</h5>
+                                    <h3 class="text-primary kpi-value" id="kpi-unidades">-</h3>
+                                    <small class="text-muted kpi-label">Total del turno</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card text-center">
+                                <div class="card-body">
+                                    <h5>Eficiencia Global</h5>
+                                    <h3 class="text-success kpi-value" id="kpi-eficiencia">-</h3>
+                                    <small class="text-muted kpi-label">Porcentaje</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card text-center">
+                                <div class="card-body">
+                                    <h5>Tiempo Paradas (min)</h5>
+                                    <h3 class="text-warning kpi-value" id="kpi-paradas">-</h3>
+                                    <small class="text-muted kpi-label">Acumulado</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card kpi-card text-center">
+                                <div class="card-body">
+                                    <h5>Fallas Activas</h5>
+                                    <h3 class="text-danger kpi-value" id="kpi-fallas">-</h3>
+                                    <small class="text-muted kpi-label">Sin resolver</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row 1 -->
+                    <div class="row mt-4">
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Producción por Línea</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="productionChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Fallas por Línea</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="failuresChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row 2 -->
+                    <div class="row mt-4">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Eficiencia por Turno</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="efficiencyChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Distribución de Paradas</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="downtimeChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activities -->
+                    <div class="row mt-4">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Paradas Recientes</h5>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">Ver todas</a>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush" id="recent-downtimes">
+                                        <div class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Cargando...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Últimas Fallas</h5>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">Ver todas</a>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush" id="recent-failures">
+                                        <div class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Cargando...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap & jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+
+        
+        // Configuración base
+        
+        const API_BASE = "/api";
+        let token = localStorage.getItem("access_token");
+        let charts = {};
+        let refreshInterval = null;
+        let currentUser = null;
+
+        // ===== FUNCIONES PRINCIPALES =====
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = "/accounts/login/";
+        }
+
+        async function fetchAPI(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: { 
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+                
+                if (response.status === 401) { 
+                    logout(); 
+                    return null;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching API:', error);
+                showError('Error al cargar los datos');
+                return null;
+            }
+        }
+
+        function showError(message) {
+            console.error(message);
+            // Podrías implementar notificaciones toast aquí
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('es-ES').format(num);
+        }
+
+        function actualizarTimestamp() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                `Actualizado: ${now.toLocaleTimeString()}`;
+        }
+
+        function actualizarHora() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            const timeElement = document.getElementById('sidebar-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+
+        // ===== FUNCIONES DE USUARIO =====
+
+        function updateUserInfo(userData) {
+            currentUser = userData;
+            const username = userData.username || 'Usuario';
+            
+            // Actualizar navbar
+            document.getElementById('navbar-username').textContent = username;
+            document.getElementById('dropdown-username').textContent = username;
+            document.getElementById('sidebar-username').textContent = username;
+            
+            if (userData.email) {
+                document.getElementById('dropdown-email').textContent = userData.email;
+            }
+            
+            if (userData.role) {
+                document.getElementById('navbar-role').textContent = userData.role;
+            }
+        }
+
+        async function loadUserInfo() {
+            try {
+                const userData = await fetchAPI("/user-info/");
+                if (userData) {
+                    updateUserInfo(userData);
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+            }
+        }
+
+        // ===== FUNCIONES DE CARGA DE DATOS =====
+
+        async function loadKPIs() {
+            const data = await fetchAPI("/dashboard/supervisor/");
+            if (data) {
+                document.getElementById("kpi-unidades").textContent = formatNumber(data.unidades_producidas || 0);
+                document.getElementById("kpi-eficiencia").textContent = (data.eficiencia_global || 0) + "%";
+                document.getElementById("kpi-paradas").textContent = formatNumber(data.tiempo_paradas || 0);
+                document.getElementById("kpi-fallas").textContent = formatNumber(data.fallas_activas || 0);
+            }
+        }
+
+        async function loadProductionChart() {
+            const data = await fetchAPI("/produccion-turno/");
+            if (data && charts.production) {
+                const labels = data.map(item => item.linea?.nombre || "Sin Línea");
+                const valores = data.map(item => item.unidades_producidas || 0);
+
+                charts.production.data.labels = labels;
+                charts.production.data.datasets[0].data = valores;
+                charts.production.update();
+            }
+        }
+
+        async function loadFailuresChart() {
+            const data = await fetchAPI("/fallas-turno/");
+            if (data && charts.failures) {
+                const lineas = {};
+                data.forEach(f => {
+                    const nombre = f.linea_nombre || "Sin Línea";
+                    lineas[nombre] = (lineas[nombre] || 0) + 1;
+                });
+
+                const labels = Object.keys(lineas);
+                const valores = Object.values(lineas);
+
+                charts.failures.data.labels = labels;
+                charts.failures.data.datasets[0].data = valores;
+                charts.failures.update();
+            }
+        }
+
+        async function loadEfficiencyChart() {
+            const data = await fetchAPI("/produccion-turno/");
+            if (data && charts.efficiency) {
+                const turnos = {};
+                data.forEach(item => {
+                    const turno = item.turno || "Sin Turno";
+                    if (!turnos[turno]) {
+                        turnos[turno] = {
+                            total: 0,
+                            count: 0
+                        };
+                    }
+                    turnos[turno].total += item.eficiencia || 0;
+                    turnos[turno].count += 1;
+                });
+
+                const labels = Object.keys(turnos);
+                const valores = labels.map(turno => (turnos[turno].total / turnos[turno].count).toFixed(1));
+
+                charts.efficiency.data.labels = labels;
+                charts.efficiency.data.datasets[0].data = valores;
+                charts.efficiency.update();
+            }
+        }
+
+        async function loadDowntimeChart() {
+            const data = await fetchAPI("/dashboard/supervisor/");
+            if (charts.downtime) {
+                charts.downtime.data.datasets[0].data = [35, 25, 20, 15, 5];
+                charts.downtime.update();
+            }
+        }
+
+        async function loadRecentDowntimes() {
+            const data = await fetchAPI("/dashboard/supervisor/alertas-recientes/");
+            const container = document.getElementById("recent-downtimes");
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="text-center py-3 text-muted">No hay paradas recientes</div>';
+                return;
+            }
+
+            let html = '';
+            data.slice(0, 5).forEach(alerta => {
+                html += `
+                    <div class="list-group-item recent-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">${alerta.tipo || 'Parada'}</h6>
+                            <small class="text-muted">${alerta.duracion || '0'} min</small>
+                        </div>
+                        <p class="mb-1">${alerta.mensaje || 'Sin descripción'}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i> ${alerta.fecha || 'Fecha no disponible'}
+                        </small>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        async function loadRecentFailures() {
+            const data = await fetchAPI("/fallas-turno/?ordering=-fecha");
+            const container = document.getElementById("recent-failures");
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="text-center py-3 text-muted">No hay fallas recientes</div>';
+                return;
+            }
+
+            let html = '';
+            data.slice(0, 5).forEach(falla => {
+                const severityClass = falla.tipo === 'Critica' ? 'bg-danger' : 
+                                    falla.tipo === 'Alta' ? 'bg-warning' : 'bg-info';
+                
+                html += `
+                    <div class="list-group-item recent-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">${falla.linea_nombre || 'Sin Línea'}</h6>
+                            <span class="status-badge ${severityClass}">${falla.tipo || 'Media'}</span>
+                        </div>
+                        <p class="mb-1">${falla.descripcion || 'Sin descripción'}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-history me-1"></i> ${falla.fecha || 'Fecha no disponible'}
+                        </small>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // ===== INICIALIZACIÓN DE GRÁFICOS =====
+
+        function initializeCharts() {
+            // Gráfico de producción
+            charts.production = new Chart(document.getElementById("productionChart"), {
+                type: "bar",
+                data: {
+                    labels: [],
+                    datasets: [{ 
+                        label: "Unidades Producidas", 
+                        data: [],
+                        backgroundColor: 'rgba(52, 152, 219, 0.7)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Gráfico de fallas
+            charts.failures = new Chart(document.getElementById("failuresChart"), {
+                type: "bar",
+                data: {
+                    labels: [],
+                    datasets: [{ 
+                        label: "Cantidad de Fallas", 
+                        data: [],
+                        backgroundColor: 'rgba(231, 76, 60, 0.7)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Gráfico de eficiencia
+            charts.efficiency = new Chart(document.getElementById("efficiencyChart"), {
+                type: "line",
+                data: {
+                    labels: [],
+                    datasets: [{ 
+                        label: "Eficiencia (%)", 
+                        data: [],
+                        borderColor: 'rgb(46, 204, 113)',
+                        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            min: 0,
+                            max: 100
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de paradas
+            charts.downtime = new Chart(document.getElementById("downtimeChart"), {
+                type: "doughnut",
+                data: {
+                    labels: ['Mecánicas', 'Eléctricas', 'Cambio formato', 'Mantenimiento', 'Otros'],
+                    datasets: [{ 
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgba(231, 76, 60, 0.8)',
+                            'rgba(241, 196, 15, 0.8)',
+                            'rgba(52, 152, 219, 0.8)',
+                            'rgba(46, 204, 113, 0.8)',
+                            'rgba(149, 165, 166, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // ===== FUNCIÓN DE LOGIN =====
+
+        async function login(username, password) {
+            const submitButton = document.querySelector('#login-form button[type="submit"]');
+            const errorDiv = document.getElementById('login-error');
+            
+            try {
+                // Mostrar estado de carga
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Iniciando...';
+                errorDiv.classList.add('hidden');
+
+                console.log('🔐 Intentando login con usuario:', username);
+                
+                // URL absoluta para evitar problemas
+                const apiUrl = `${window.location.origin}/api/token/`;
+                console.log('🌐 URL del endpoint:', apiUrl);
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        username: username.trim(), 
+                        password: password 
+                    })
+                });
+                
+                console.log('📡 Respuesta HTTP:', response.status, response.statusText);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Login exitoso, token recibido');
+                    
+                    // Guardar token
+                    token = data.access;
+                    localStorage.setItem('access_token', token);
+                    console.log('🔑 Token guardado en localStorage');
+                    
+                    // Redirigir usando Django en lugar de JS
+                    window.location.href = '/dashboard/';
+                    
+                    return true;
+                } else {
+                    let errorMessage = 'Error en las credenciales';
+                    
+                    try {
+                        const errorData = await response.json();
+                        console.log('❌ Error del servidor:', errorData);
+                        errorMessage = errorData.detail || 
+                                    errorData.message || 
+                                    JSON.stringify(errorData);
+                    } catch (e) {
+                        console.log('❌ Error parseando respuesta JSON');
+                        if (response.status === 404) {
+                            errorMessage = 'Endpoint no encontrado (404). Verifica la URL del API.';
+                        } else if (response.status === 500) {
+                            errorMessage = 'Error interno del servidor (500).';
+                        } else {
+                            errorMessage = `Error ${response.status}: ${response.statusText}`;
+                        }
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+            } catch (error) {
+                console.error('💥 Error completo en login:', error);
+                
+                // Mostrar error específico
+                let userMessage = error.message;
+                
+                // Mensajes más amigables para el usuario
+                if (error.message.includes('Failed to fetch')) {
+                    userMessage = 'No se pudo conectar al servidor. Verifica tu conexión.';
+                } else if (error.message.includes('404')) {
+                    userMessage = 'Servicio no disponible. Contacta al administrador.';
+                }
+                
+                errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${userMessage}`;
+                errorDiv.classList.remove('hidden');
+                
+                return false;
+            } finally {
+                // Restaurar botón
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión';
+            }
+        }
+        // ===== FUNCIONES DE VISUALIZACIÓN =====
+
+        function showLogin() {
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('dashboard-section').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('dashboard-section').classList.remove('hidden');
+        }
+
+        // ===== INICIALIZACIÓN DEL DASHBOARD =====
+
+        async function initializeDashboard() {
+            if (!token) {
+                showLogin();
+                return;
+            }
+
+            showDashboard();
+            initializeCharts();
+            
+            // Cargar todos los datos
+            await Promise.all([
+                loadKPIs(),
+                loadProductionChart(),
+                loadFailuresChart(),
+                loadEfficiencyChart(),
+                loadDowntimeChart(),
+                loadRecentDowntimes(),
+                loadRecentFailures()
+            ]);
+            
+            actualizarTimestamp();
+            
+            // Configurar auto-refresh
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            refreshInterval = setInterval(initializeDashboard, 60000);
+        }
+
+        // ===== MANEJO DE SIDEBAR MÓVIL =====
+
+        document.getElementById('toggle-sidebar')?.addEventListener('click', function() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('mobile-open');
+        });
+
+        document.addEventListener('click', function(event) {
+            const sidebar = document.querySelector('.sidebar');
+            const toggleButton = document.getElementById('toggle-sidebar');
+            
+            if (window.innerWidth < 768 && 
+                sidebar && 
+                !sidebar.contains(event.target) && 
+                toggleButton &&
+                !toggleButton.contains(event.target) &&
+                sidebar.classList.contains('mobile-open')) {
+                sidebar.classList.remove('mobile-open');
+            }
+        });
+
+        // ===== EVENT LISTENERS =====
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar evento de login
+            document.getElementById('login-form').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                
+                if (!username || !password) {
+                    document.getElementById('login-error').textContent = 'Por favor complete todos los campos';
+                    document.getElementById('login-error').classList.remove('hidden');
+                    return;
+                }
+                
+                await login(username, password);
+            });
+
+            // Enter key para login
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('login-form').dispatchEvent(new Event('submit'));
+                }
+            });
+
+            // Inicializar dashboard si hay token
+            if (token) {
+                loadUserInfo().then(() => {
+                    initializeDashboard();
+                });
+            } else {
+                showLogin();
+            }
+
+            // Actualizar hora cada minuto
+            setInterval(actualizarHora, 60000);
+            actualizarHora(); // Ejecutar inmediatamente
+        });
+    </script>
+</body>
+</html>

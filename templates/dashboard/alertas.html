@@ -1,0 +1,933 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas - Sistema de Gestión{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Sistema de Alertas</h1>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="actualizarAlertas()">
+                <i class="fas fa-sync-alt fa-sm"></i> Actualizar
+            </button>
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" 
+                    aria-haspopup="true" aria-expanded="false">
+                <i class="fas fa-cog fa-sm"></i>
+            </button>
+            <div class="dropdown-menu">
+                <a class="dropdown-item" href="#" onclick="marcarTodasLeidas()">
+                    <i class="fas fa-check-double"></i> Marcar todas como leídas
+                </a>
+                <a class="dropdown-item" href="#" onclick="exportarAlertas()">
+                    <i class="fas fa-download"></i> Exportar alertas
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros de Alertas -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros de Alertas</h6>
+        </div>
+        <div class="card-body">
+            <form id="filtroAlertas">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="tipoAlerta">Tipo de Alerta</label>
+                            <select class="form-control" id="tipoAlerta">
+                                <option value="">Todos los tipos</option>
+                                <option value="critica">Crítica</option>
+                                <option value="alta">Alta</option>
+                                <option value="media">Media</option>
+                                <option value="baja">Baja</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="categoriaAlerta">Categoría</label>
+                            <select class="form-control" id="categoriaAlerta">
+                                <option value="">Todas las categorías</option>
+                                <option value="produccion">Producción</option>
+                                <option value="mantenimiento">Mantenimiento</option>
+                                <option value="calidad">Calidad</option>
+                                <option value="seguridad">Seguridad</option>
+                                <option value="sistema">Sistema</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="estadoAlerta">Estado</label>
+                            <select class="form-control" id="estadoAlerta">
+                                <option value="">Todos los estados</option>
+                                <option value="activa">Activa</option>
+                                <option value="leida">Leída</option>
+                                <option value="resuelta">Resuelta</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="fechaAlerta">Fecha</label>
+                            <select class="form-control" id="fechaAlerta">
+                                <option value="24">Últimas 24 horas</option>
+                                <option value="168">Última semana</option>
+                                <option value="720">Último mes</option>
+                                <option value="todo">Todo el tiempo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-12 text-right">
+                        <button type="button" class="btn btn-primary" onclick="aplicarFiltros()">
+                            <i class="fas fa-filter"></i> Aplicar Filtros
+                        </button>
+                        <button type="reset" class="btn btn-secondary" onclick="limpiarFiltros()">
+                            <i class="fas fa-redo"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumen de Alertas -->
+    <div class="row">
+        <div class="col-xl-2 col-md-4 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Alertas Críticas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="contadorCriticas">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Alertas Altas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="contadorAltas">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Alertas Medias
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="contadorMedias">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-info-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 mb-4">
+            <div class="card border-left-secondary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                                Alertas Bajas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="contadorBajas">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-info fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Resueltas (24h)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="contadorResueltas">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Activas
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="contadorTotal">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-bell fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Alertas -->
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Alertas del Sistema</h6>
+                    <span class="badge badge-primary" id="contadorAlertas">0 alertas</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="tablaAlertas" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Severidad</th>
+                                    <th>Mensaje</th>
+                                    <th>Categoría</th>
+                                    <th>Origen</th>
+                                    <th>Fecha</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cuerpoAlertas">
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="sr-only">Cargando alertas...</span>
+                                        </div>
+                                        <p class="mt-2 mb-0">Cargando alertas del sistema...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Tendencia de Alertas -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Tendencia de Alertas (Últimos 7 días)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="graficoAlertas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Distribución por Categoría</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie">
+                        <canvas id="graficoCategorias"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Detalles de Alerta -->
+<div class="modal fade" id="modalDetalleAlerta" tabindex="-1" role="dialog" aria-labelledby="modalDetalleAlertaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalDetalleAlertaLabel">Detalles de Alerta</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="contenidoDetalleAlerta">
+                <!-- Contenido dinámico -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="btnMarcarLeida">Marcar como Leída</button>
+                <button type="button" class="btn btn-success" id="btnResolverAlerta">Resolver Alerta</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Variables globales
+const API_BASE = "/api";
+let token = localStorage.getItem("access_token");
+let alertasData = [];
+let graficoAlertas = null;
+let graficoCategorias = null;
+
+// Configuración de severidades
+const severidadConfig = {
+    'critica': { 
+        class: 'danger', 
+        icon: 'fa-exclamation-triangle', 
+        label: 'Crítica',
+        color: '#e74a3b'
+    },
+    'alta': { 
+        class: 'warning', 
+        icon: 'fa-exclamation-circle', 
+        label: 'Alta',
+        color: '#f6c23e'
+    },
+    'media': { 
+        class: 'info', 
+        icon: 'fa-info-circle', 
+        label: 'Media',
+        color: '#36b9cc'
+    },
+    'baja': { 
+        class: 'secondary', 
+        icon: 'fa-info', 
+        label: 'Baja',
+        color: '#858796'
+    }
+};
+
+// Configuración de categorías
+const categoriaConfig = {
+    'produccion': { class: 'primary', label: 'Producción', color: '#4e73df' },
+    'mantenimiento': { class: 'warning', label: 'Mantenimiento', color: '#f6c23e' },
+    'calidad': { class: 'success', label: 'Calidad', color: '#1cc88a' },
+    'seguridad': { class: 'danger', label: 'Seguridad', color: '#e74a3b' },
+    'sistema': { class: 'info', label: 'Sistema', color: '#36b9cc' }
+};
+
+// Función de logout
+function logout() {
+    localStorage.clear();
+    window.location.href = "/login";
+}
+
+// Función segura para hacer fetch
+async function fetchAPISafe(endpoint) {
+    try {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            headers: { 
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        });
+        
+        if (response.status === 401) { 
+            logout(); 
+            return null;
+        }
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                console.warn(`Endpoint ${endpoint} no encontrado`);
+                return [];
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        return [];
+    }
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    if (!token) {
+        logout();
+        return;
+    }
+    
+    cargarAlertas();
+    // Actualizar cada 2 minutos
+    setInterval(cargarAlertas, 120000);
+});
+
+// Función principal para cargar alertas
+async function cargarAlertas() {
+    try {
+        // Obtener datos de diferentes fuentes para generar alertas
+        const [produccionData, paradasData, fallasData, ordenesData] = await Promise.all([
+            fetchAPISafe('/produccion/?page_size=100&ordering=-fecha'),
+            fetchAPISafe('/paradas-turno/?page_size=100&ordering=-fecha'),
+            fetchAPISafe('/fallas-turno/?page_size=100&ordering=-fecha'),
+            fetchAPISafe('/ordenes/?page_size=100&ordering=-fecha_creacion')
+        ]);
+
+        // Generar alertas a partir de los datos
+        alertasData = generarAlertasDesdeDatos(produccionData, paradasData, fallasData, ordenesData);
+        
+        // Aplicar filtros actuales
+        aplicarFiltros();
+        
+        // Actualizar gráficos
+        actualizarGraficos();
+        
+    } catch (error) {
+        console.error('Error cargando alertas:', error);
+        mostrarError('Error al cargar las alertas: ' + error.message);
+    }
+}
+
+// Función para generar alertas a partir de los datos del sistema
+function generarAlertasDesdeDatos(produccion, paradas, fallas, ordenes) {
+    const alertas = [];
+    const ahora = new Date();
+    
+    // Alertas de producción
+    if (produccion && produccion.length > 0) {
+        // Alerta por baja eficiencia
+        produccion.forEach(item => {
+            const eficiencia = item.meta_produccion ? 
+                ((item.fabricacion_toneladas || item.cantidad || 0) / item.meta_produccion * 100) : 0;
+            
+            if (eficiencia < 70) {
+                alertas.push({
+                    id: `prod-${item.id}`,
+                    mensaje: `Baja eficiencia en Línea ${item.linea_nombre}: ${eficiencia.toFixed(1)}%`,
+                    severidad: eficiencia < 50 ? 'critica' : eficiencia < 60 ? 'alta' : 'media',
+                    categoria: 'produccion',
+                    origen: `Línea ${item.linea_nombre}`,
+                    fecha: item.fecha,
+                    timestamp: new Date(item.fecha).getTime(),
+                    estado: 'activa',
+                    datos: item
+                });
+            }
+        });
+    }
+    
+    // Alertas de paradas largas
+    if (paradas && paradas.length > 0) {
+        paradas.forEach(parada => {
+            if (parada.duracion_minutos > 60) {
+                alertas.push({
+                    id: `parada-${parada.id}`,
+                    mensaje: `Parada prolongada en Línea ${parada.linea_nombre}: ${parada.duracion_minutos} minutos`,
+                    severidad: parada.duracion_minutos > 120 ? 'critica' : 'alta',
+                    categoria: 'mantenimiento',
+                    origen: `Línea ${parada.linea_nombre}`,
+                    fecha: parada.fecha,
+                    timestamp: new Date(parada.fecha).getTime(),
+                    estado: 'activa',
+                    datos: parada
+                });
+            }
+        });
+    }
+    
+    // Alertas de fallas críticas
+    if (fallas && fallas.length > 0) {
+        fallas.forEach(falla => {
+            if (falla.gravedad === 'critica' || falla.gravedad === 'grave') {
+                alertas.push({
+                    id: `falla-${falla.id}`,
+                    mensaje: `Falla ${falla.gravedad} reportada en ${falla.linea_nombre}: ${falla.tipo}`,
+                    severidad: falla.gravedad === 'critica' ? 'critica' : 'alta',
+                    categoria: 'mantenimiento',
+                    origen: `Línea ${falla.linea_nombre}`,
+                    fecha: falla.fecha,
+                    timestamp: new Date(falla.fecha).getTime(),
+                    estado: 'activa',
+                    datos: falla
+                });
+            }
+        });
+    }
+    
+    // Alertas de órdenes de mantenimiento vencidas o críticas
+    if (ordenes && ordenes.length > 0) {
+        ordenes.forEach(orden => {
+            if (orden.estado === 'pendiente' && orden.prioridad === 'critica') {
+                alertas.push({
+                    id: `orden-${orden.id}`,
+                    mensaje: `Orden crítica pendiente: ${orden.titulo}`,
+                    severidad: 'alta',
+                    categoria: 'mantenimiento',
+                    origen: 'Sistema de Mantenimiento',
+                    fecha: orden.fecha_creacion,
+                    timestamp: new Date(orden.fecha_creacion).getTime(),
+                    estado: 'activa',
+                    datos: orden
+                });
+            }
+            
+            // Órdenes pendientes por más de 7 días
+            if (orden.estado === 'pendiente') {
+                const fechaCreacion = new Date(orden.fecha_creacion);
+                const diasPendiente = (ahora - fechaCreacion) / (1000 * 60 * 60 * 24);
+                if (diasPendiente > 7) {
+                    alertas.push({
+                        id: `orden-antigua-${orden.id}`,
+                        mensaje: `Orden pendiente por ${Math.floor(diasPendiente)} días: ${orden.titulo}`,
+                        severidad: diasPendiente > 14 ? 'alta' : 'media',
+                        categoria: 'mantenimiento',
+                        origen: 'Sistema de Mantenimiento',
+                        fecha: orden.fecha_creacion,
+                        timestamp: fechaCreacion.getTime(),
+                        estado: 'activa',
+                        datos: orden
+                    });
+                }
+            }
+        });
+    }
+    
+    // Ordenar por fecha (más recientes primero)
+    return alertas.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+// Aplicar filtros a las alertas
+function aplicarFiltros() {
+    const tipoAlerta = document.getElementById('tipoAlerta').value;
+    const categoriaAlerta = document.getElementById('categoriaAlerta').value;
+    const estadoAlerta = document.getElementById('estadoAlerta').value;
+    const fechaAlerta = document.getElementById('fechaAlerta').value;
+    
+    const ahora = new Date();
+    let alertasFiltradas = [...alertasData];
+    
+    // Filtrar por tipo (severidad)
+    if (tipoAlerta) {
+        alertasFiltradas = alertasFiltradas.filter(alerta => alerta.severidad === tipoAlerta);
+    }
+    
+    // Filtrar por categoría
+    if (categoriaAlerta) {
+        alertasFiltradas = alertasFiltradas.filter(alerta => alerta.categoria === categoriaAlerta);
+    }
+    
+    // Filtrar por estado
+    if (estadoAlerta) {
+        alertasFiltradas = alertasFiltradas.filter(alerta => alerta.estado === estadoAlerta);
+    }
+    
+    // Filtrar por fecha
+    if (fechaAlerta !== 'todo') {
+        const horas = parseInt(fechaAlerta);
+        const fechaLimite = new Date(ahora.getTime() - (horas * 60 * 60 * 1000));
+        alertasFiltradas = alertasFiltradas.filter(alerta => 
+            new Date(alerta.fecha) >= fechaLimite
+        );
+    }
+    
+    // Actualizar la vista
+    actualizarVistaAlertas(alertasFiltradas);
+    actualizarContadores(alertasFiltradas);
+}
+
+// Actualizar la tabla de alertas
+function actualizarVistaAlertas(alertas) {
+    const cuerpo = document.getElementById('cuerpoAlertas');
+    const contador = document.getElementById('contadorAlertas');
+    
+    contador.textContent = `${alertas.length} alertas`;
+    
+    if (alertas.length === 0) {
+        cuerpo.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <i class="fas fa-check-circle fa-2x text-success mb-3"></i>
+                    <p class="mb-0">No hay alertas que coincidan con los filtros</p>
+                    <small class="text-muted">¡Buen trabajo! El sistema está funcionando correctamente.</small>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    alertas.forEach(alerta => {
+        const severidad = severidadConfig[alerta.severidad];
+        const categoria = categoriaConfig[alerta.categoria];
+        const fecha = new Date(alerta.fecha).toLocaleString('es-ES');
+        
+        html += `
+            <tr class="${alerta.estado === 'activa' ? 'table-warning' : ''}">
+                <td>
+                    <span class="badge badge-${severidad.class}">
+                        <i class="fas ${severidad.icon} mr-1"></i>${severidad.label}
+                    </span>
+                </td>
+                <td>
+                    <strong>${alerta.mensaje}</strong>
+                    ${alerta.estado === 'activa' ? '<span class="badge badge-danger ml-2">NUEVA</span>' : ''}
+                </td>
+                <td>
+                    <span class="badge badge-${categoria.class}">${categoria.label}</span>
+                </td>
+                <td>${alerta.origen}</td>
+                <td>${fecha}</td>
+                <td>
+                    <span class="badge badge-${alerta.estado === 'activa' ? 'warning' : alerta.estado === 'leida' ? 'info' : 'success'}">
+                        ${alerta.estado.charAt(0).toUpperCase() + alerta.estado.slice(1)}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="verDetalleAlerta('${alerta.id}')" title="Ver detalles">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${alerta.estado === 'activa' ? `
+                    <button class="btn btn-sm btn-outline-success ml-1" onclick="marcarAlertaLeida('${alerta.id}')" title="Marcar como leída">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-outline-danger ml-1" onclick="eliminarAlerta('${alerta.id}')" title="Eliminar alerta">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    cuerpo.innerHTML = html;
+}
+
+// Actualizar contadores de resumen
+function actualizarContadores(alertas) {
+    const criticas = alertas.filter(a => a.severidad === 'critica' && a.estado === 'activa').length;
+    const altas = alertas.filter(a => a.severidad === 'alta' && a.estado === 'activa').length;
+    const medias = alertas.filter(a => a.severidad === 'media' && a.estado === 'activa').length;
+    const bajas = alertas.filter(a => a.severidad === 'baja' && a.estado === 'activa').length;
+    
+    // Calcular resueltas en últimas 24h
+    const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const resueltas = alertas.filter(a => 
+        a.estado === 'resuelta' && new Date(a.fecha) >= hace24h
+    ).length;
+    
+    const totalActivas = criticas + altas + medias + bajas;
+    
+    document.getElementById('contadorCriticas').textContent = criticas;
+    document.getElementById('contadorAltas').textContent = altas;
+    document.getElementById('contadorMedias').textContent = medias;
+    document.getElementById('contadorBajas').textContent = bajas;
+    document.getElementById('contadorResueltas').textContent = resueltas;
+    document.getElementById('contadorTotal').textContent = totalActivas;
+}
+
+// Actualizar gráficos
+function actualizarGraficos() {
+    actualizarGraficoAlertas();
+    actualizarGraficoCategorias();
+}
+
+function actualizarGraficoAlertas() {
+    const ctx = document.getElementById('graficoAlertas').getContext('2d');
+    
+    // Destruir gráfico anterior si existe
+    if (graficoAlertas) {
+        graficoAlertas.destroy();
+    }
+    
+    // Generar datos de los últimos 7 días
+    const ultimos7Dias = [];
+    for (let i = 6; i >= 0; i--) {
+        const fecha = new Date();
+        fecha.setDate(fecha.getDate() - i);
+        ultimos7Dias.push(fecha.toISOString().split('T')[0]);
+    }
+    
+    const datosPorDia = ultimos7Dias.map(fecha => {
+        return alertasData.filter(alerta => 
+            alerta.fecha.startsWith(fecha) && alerta.estado === 'activa'
+        ).length;
+    });
+    
+    graficoAlertas = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ultimos7Dias.map(f => {
+                const date = new Date(f);
+                return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+            }),
+            datasets: [{
+                label: 'Alertas Activas',
+                data: datosPorDia,
+                borderColor: '#e74a3b',
+                backgroundColor: 'rgba(231, 74, 59, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Evolución de Alertas Activas'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function actualizarGraficoCategorias() {
+    const ctx = document.getElementById('graficoCategorias').getContext('2d');
+    
+    // Destruir gráfico anterior si existe
+    if (graficoCategorias) {
+        graficoCategorias.destroy();
+    }
+    
+    // Contar alertas por categoría
+    const categorias = {};
+    alertasData.filter(a => a.estado === 'activa').forEach(alerta => {
+        if (!categorias[alerta.categoria]) {
+            categorias[alerta.categoria] = 0;
+        }
+        categorias[alerta.categoria]++;
+    });
+    
+    const labels = Object.keys(categorias).map(cat => categoriaConfig[cat]?.label || cat);
+    const datos = Object.values(categorias);
+    const colores = Object.keys(categorias).map(cat => categoriaConfig[cat]?.color || '#858796');
+    
+    graficoCategorias = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: datos,
+                backgroundColor: colores,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Funciones de acciones
+function verDetalleAlerta(idAlerta) {
+    const alerta = alertasData.find(a => a.id === idAlerta);
+    if (!alerta) return;
+    
+    const modal = document.getElementById('modalDetalleAlerta');
+    const contenido = document.getElementById('contenidoDetalleAlerta');
+    
+    let detalles = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Información de la Alerta</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Severidad:</strong></td><td><span class="badge badge-${severidadConfig[alerta.severidad].class}">${severidadConfig[alerta.severidad].label}</span></td></tr>
+                    <tr><td><strong>Categoría:</strong></td><td><span class="badge badge-${categoriaConfig[alerta.categoria].class}">${categoriaConfig[alerta.categoria].label}</span></td></tr>
+                    <tr><td><strong>Origen:</strong></td><td>${alerta.origen}</td></tr>
+                    <tr><td><strong>Fecha:</strong></td><td>${new Date(alerta.fecha).toLocaleString('es-ES')}</td></tr>
+                    <tr><td><strong>Estado:</strong></td><td><span class="badge badge-${alerta.estado === 'activa' ? 'warning' : alerta.estado === 'leida' ? 'info' : 'success'}">${alerta.estado.charAt(0).toUpperCase() + alerta.estado.slice(1)}</span></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Mensaje</h6>
+                <div class="alert alert-${severidadConfig[alerta.severidad].class}">
+                    <i class="fas ${severidadConfig[alerta.severidad].icon} mr-2"></i>
+                    ${alerta.mensaje}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Agregar detalles específicos según el tipo de alerta
+    if (alerta.datos) {
+        detalles += `
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6>Datos Relacionados</h6>
+                    <pre class="bg-light p-3 small">${JSON.stringify(alerta.datos, null, 2)}</pre>
+                </div>
+            </div>
+        `;
+    }
+    
+    contenido.innerHTML = detalles;
+    
+    // Configurar botones del modal
+    document.getElementById('btnMarcarLeida').onclick = () => marcarAlertaLeida(idAlerta);
+    document.getElementById('btnResolverAlerta').onclick = () => resolverAlerta(idAlerta);
+    
+    // Mostrar modal
+    $(modal).modal('show');
+}
+
+function marcarAlertaLeida(idAlerta) {
+    const alerta = alertasData.find(a => a.id === idAlerta);
+    if (alerta) {
+        alerta.estado = 'leida';
+        aplicarFiltros();
+        $('#modalDetalleAlerta').modal('hide');
+        mostrarExito('Alerta marcada como leída');
+    }
+}
+
+function resolverAlerta(idAlerta) {
+    const alerta = alertasData.find(a => a.id === idAlerta);
+    if (alerta) {
+        alerta.estado = 'resuelta';
+        aplicarFiltros();
+        $('#modalDetalleAlerta').modal('hide');
+        mostrarExito('Alerta resuelta correctamente');
+    }
+}
+
+function eliminarAlerta(idAlerta) {
+    if (confirm('¿Está seguro de que desea eliminar esta alerta?')) {
+        alertasData = alertasData.filter(a => a.id !== idAlerta);
+        aplicarFiltros();
+        mostrarExito('Alerta eliminada correctamente');
+    }
+}
+
+function marcarTodasLeidas() {
+    if (confirm('¿Marcar todas las alertas activas como leídas?')) {
+        alertasData.forEach(alerta => {
+            if (alerta.estado === 'activa') {
+                alerta.estado = 'leida';
+            }
+        });
+        aplicarFiltros();
+        mostrarExito('Todas las alertas han sido marcadas como leídas');
+    }
+}
+
+function actualizarAlertas() {
+    cargarAlertas();
+    mostrarExito('Alertas actualizadas');
+}
+
+function exportarAlertas() {
+    // Simulación de exportación
+    const datosExportar = alertasData.map(alerta => ({
+        Mensaje: alerta.mensaje,
+        Severidad: alerta.severidad,
+        Categoría: alerta.categoria,
+        Origen: alerta.origen,
+        Fecha: alerta.fecha,
+        Estado: alerta.estado
+    }));
+    
+    const blob = new Blob([JSON.stringify(datosExportar, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `alertas-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    mostrarExito('Alertas exportadas correctamente');
+}
+
+function limpiarFiltros() {
+    document.getElementById('tipoAlerta').value = '';
+    document.getElementById('categoriaAlerta').value = '';
+    document.getElementById('estadoAlerta').value = '';
+    document.getElementById('fechaAlerta').value = '24';
+    aplicarFiltros();
+}
+
+// Funciones de utilidad
+function mostrarExito(mensaje) {
+    // Implementar notificación de éxito
+    console.log('Éxito:', mensaje);
+    alert(mensaje); // Reemplazar con sistema de notificaciones
+}
+
+function mostrarError(mensaje) {
+    // Implementar notificación de error
+    console.error('Error:', mensaje);
+    alert('Error: ' + mensaje); // Reemplazar con sistema de notificaciones
+}
+</script>
+
+<style>
+.chart-area {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+.chart-pie {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0,0,0,.075);
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,211 @@
+/* Dashboard Styles */
+.navbar {
+    background-color: var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar {
+    background-color: var(--dark-bg);
+    color: white;
+    height: calc(100vh - 56px);
+    position: sticky;
+    top: 56px;
+    box-shadow: var(--card-shadow);
+}
+
+.sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    padding: 0.8rem 1rem;
+    transition: var(--transition);
+    border-left: 3px solid transparent;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left-color: var(--secondary-color);
+}
+
+.sidebar .nav-link i {
+    margin-right: 10px;
+    width: 24px;
+    text-align: center;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition);
+    margin-bottom: 1.5rem;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.kpi-card {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.kpi-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+}
+
+.kpi-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.kpi-trend {
+    font-size: 0.9rem;
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 20px;
+    margin-top: 0.5rem;
+}
+
+.trend-up {
+    background-color: rgba(46, 204, 113, 0.2);
+    color: #27ae60;
+}
+
+.trend-down {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #c0392b;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    padding: 1rem;
+}
+
+.filter-bar {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 1.5rem;
+}
+
+.status-badge {
+    padding: 0.35rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.bg-success { background-color: var(--success-color) !important; }
+.bg-warning { background-color: var(--warning-color) !important; }
+.bg-danger { background-color: var(--accent-color) !important; }
+.bg-info { background-color: var(--secondary-color) !important; }
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+
+.recent-item {
+    border-left: 3px solid transparent;
+    transition: var(--transition);
+    padding: 1rem;
+}
+
+.recent-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: var(--secondary-color);
+}
+
+.recent-item h6 {
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.recent-item p {
+    margin-bottom: 0.5rem;
+    color: #6c757d;
+}
+
+.recent-item small {
+    font-size: 0.8rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .sidebar {
+        height: auto;
+        position: relative;
+        top: 0;
+        margin-bottom: 1rem;
+    }
+    
+    .kpi-value {
+        font-size: 2rem;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+    
+    .filter-bar .btn-group {
+        margin-top: 1rem;
+        width: 100%;
+    }
+    
+    .filter-bar .btn-group .btn {
+        flex: 1;
+    }
+}
+
+@media (max-width: 576px) {
+    .kpi-card {
+        padding: 1rem;
+    }
+    
+    .kpi-value {
+        font-size: 1.75rem;
+    }
+    
+    .chart-container {
+        height: 200px;
+        padding: 0.5rem;
+    }
+}
+
+/* Custom Scrollbar */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}

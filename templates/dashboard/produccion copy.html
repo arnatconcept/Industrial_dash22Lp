@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Producción</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-bg: #f8f9fa;
+            --dark-bg: #34495e;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        body {
+            background-color: #f5f7f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+        }
+        
+        /* Login Page Styles */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-bg) 100%);
+        }
+        
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .login-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .login-body {
+            padding: 2rem;
+        }
+        
+        .form-control:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        /* Dashboard Styles */
+        .navbar {
+            background-color: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar {
+            background-color: var(--dark-bg);
+            color: white;
+            height: calc(100vh - 56px);
+            position: sticky;
+            top: 56px;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.8rem 1rem;
+            transition: var(--transition);
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            width: 24px;
+            text-align: center;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .kpi-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .kpi-trend {
+            font-size: 0.9rem;
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+            margin-top: 0.5rem;
+        }
+        
+        .trend-up {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #27ae60;
+        }
+        
+        .trend-down {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem;
+        }
+        
+        .filter-bar {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+        }
+        
+        .status-badge {
+            padding: 0.35rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            color: #6c757d;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+        
+        .recent-item {
+            border-left: 3px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .recent-item:hover {
+            background-color: #f8f9fa;
+            border-left-color: var(--secondary-color);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                height: auto;
+                position: relative;
+                top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Section -->
+    <div id="login-section" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h4><i class="fas fa-industry me-2"></i>Sistema de Producción</h4>
+                <p class="mb-0">Ingrese sus credenciales</p>
+            </div>
+            <div class="login-body">
+                <form id="login-form">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Usuario</label>
+                        <input type="text" class="form-control" id="username" placeholder="Ingrese su usuario" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" placeholder="Ingrese su contraseña" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="remember-me">
+                        <label class="form-check-label" for="remember-me">Recordarme</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
+                </form>
+                <div id="login-error" class="alert alert-danger mt-3 hidden" role="alert">
+                    Error en las credenciales. Intente nuevamente.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" class="hidden">
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-industry me-2"></i>
+                    Sistema de Gestión de Producción
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle me-1"></i> <span id="user-name">Usuario</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Perfil</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Configuración</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" id="logout-btn"><i class="fas fa-sign-out-alt me-2"></i>Cerrar sesión</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-lg-2 col-md-3 p-0">
+                    <div class="sidebar">
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#">
+                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-cogs"></i> Producción
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-tools"></i> Mantenimiento
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-chart-line"></i> Reportes
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-exclamation-triangle"></i> Alertas
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-cog"></i> Configuración
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="col-lg-10 col-md-9 py-4">
+                    <!-- Filter Bar -->
+                    <div class="filter-bar">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <h5 class="mb-0">Dashboard de Producción</h5>
+                            </div>
+                            <div class="col-md-9 text-end">
+                                <div class="btn-group me-2">
+                                    <button type="button" class="btn btn-outline-secondary active">Hoy</button>
+                                    <button type="button" class="btn btn-outline-secondary">7 días</button>
+                                    <button type="button" class="btn btn-outline-secondary">30 días</button>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-filter me-1"></i> Línea: Todas
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="#">Línea 1</a></li>
+                                        <li><a class="dropdown-item" href="#">Línea 2</a></li>
+                                        <li><a class="dropdown-item" href="#">Línea 3</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards -->
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card">
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Unidades Producidas</div>
+                                    <div class="kpi-value text-primary" id="kpi-unidades">12,548</div>
+                                    <div class="kpi-trend trend-up">
+                                        <i class="fas fa-arrow-up me-1"></i> <span id="kpi-unidades-trend">8.2%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card">
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Eficiencia General</div>
+                                    <div class="kpi-value text-success" id="kpi-eficiencia">87.3%</div>
+                                    <div class="kpi-trend trend-up">
+                                        <i class="fas fa-arrow-up me-1"></i> <span id="kpi-eficiencia-trend">2.4%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card">
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Tiempo Paradas (min)</div>
+                                    <div class="kpi-value text-warning" id="kpi-paradas">326</div>
+                                    <div class="kpi-trend trend-down">
+                                        <i class="fas fa-arrow-down me-1"></i> <span id="kpi-paradas-trend">12.7%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card">
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Fallas Activas</div>
+                                    <div class="kpi-value text-danger" id="kpi-fallas">8</div>
+                                    <div class="kpi-trend trend-up">
+                                        <i class="fas fa-arrow-up me-1"></i> <span id="kpi-fallas-trend">3.1%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row 1 -->
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Producción por Línea</span>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-secondary">Diario</button>
+                                        <button type="button" class="btn btn-outline-secondary active">Semanal</button>
+                                        <button type="button" class="btn btn-outline-secondary">Mensual</button>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="productionChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">Distribución de Paradas</div>
+                                <div class="chart-container">
+                                    <canvas id="downtimeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row 2 -->
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">Eficiencia por Turno</div>
+                                <div class="chart-container">
+                                    <canvas id="efficiencyChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">Tendencia de Fallas</div>
+                                <div class="chart-container">
+                                    <canvas id="failuresChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activities -->
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Paradas Recientes</span>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">Ver todas</a>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush" id="recent-downtimes">
+                                        <div class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Cargando...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Fallas Recientes</span>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">Ver todas</a>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush" id="recent-failures">
+                                        <div class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Cargando...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap & jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Variables globales para almacenar los gráficos
+        let productionChart, downtimeChart, efficiencyChart, failuresChart;
+        
+        // Función para formatear números con separadores de miles
+        function formatNumber(num) {
+            return new Intl.NumberFormat('es-ES').format(num);
+        }
+        
+        // Función para mostrar/ocultar elementos
+        function toggleElement(id, show) {
+            const element = document.getElementById(id);
+            if (show) {
+                element.classList.remove('hidden');
+            } else {
+                element.classList.add('hidden');
+            }
+        }
+        
+        // Función para guardar el token en localStorage
+        function saveAuthData(token, username) {
+            localStorage.setItem('access_token', token);
+            localStorage.setItem('username', username);
+        }
+        
+        // Función para eliminar los datos de autenticación
+        function clearAuthData() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('username');
+        }
+        
+        // Función para obtener datos de la API
+        async function fetchData(url) {
+            try {
+                const token = localStorage.getItem('access_token');
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.status === 401) {
+                    // Token inválido o expirado
+                    clearAuthData();
+                    showLogin();
+                    return null;
+                }
+                
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta de la API');
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return null;
+            }
+        }
+        
+        // Función para realizar login
+        async function login(username, password) {
+            try {
+                const response = await fetch('/api/token/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    saveAuthData(data.access, username);
+                    showDashboard();
+                    loadDashboardData();
+                    return true;
+                } else {
+                    console.error('Error de autenticación');
+                    document.getElementById('login-error').classList.remove('hidden');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error en login:', error);
+                document.getElementById('login-error').classList.remove('hidden');
+                return false;
+            }
+        }
+        
+        // Función para realizar logout
+        function logout() {
+            clearAuthData();
+            showLogin();
+        }
+        
+        // Función para mostrar la pantalla de login
+        function showLogin() {
+            toggleElement('login-section', true);
+            toggleElement('dashboard-section', false);
+        }
+        
+        // Función para mostrar el dashboard
+        function showDashboard() {
+            const username = localStorage.getItem('username');
+            if (username) {
+                document.getElementById('user-name').textContent = username;
+            }
+            toggleElement('login-section', false);
+            toggleElement('dashboard-section', true);
+        }
+        
+        // Cargar datos del dashboard
+        async function loadDashboardData() {
+            // Cargar KPIs
+            const kpiData = await fetchData('/api/dashboard/eficiencia-general/');
+            if (kpiData) {
+                document.getElementById('kpi-unidades').textContent = formatNumber(kpiData.totales.unidades_producidas || 0);
+                document.getElementById('kpi-eficiencia').textContent = kpiData.totales.eficiencia_general_porcentaje?.toFixed(1) + '%' || '0%';
+                document.getElementById('kpi-paradas').textContent = kpiData.totales.paradas || 0;
+                
+                // Datos de tendencia (simulados por ahora)
+                document.getElementById('kpi-unidades-trend').textContent = '8.2%';
+                document.getElementById('kpi-eficiencia-trend').textContent = '2.4%';
+                document.getElementById('kpi-paradas-trend').textContent = '12.7%';
+            }
+            
+            // Cargar datos de 
+            
+            const fallasData = await fetchAPI("/fallas-turno/");
+            // agrupamos fallas por línea
+            const lineas = {};
+            data.forEach(f => {
+            const nombre = f.linea_nombre || "Sin Línea";
+            lineas[nombre] = (lineas[nombre] || 0) + 1;
+            });
+        
+            if (fallasData) {
+                document.getElementById('kpi-fallas').textContent = fallasData.totales.fallas || 0;
+                document.getElementById('kpi-fallas-trend').textContent = '3.1%';
+                
+                // Actualizar lista de fallas recientes
+                updateRecentFailures(fallasData.recientes || []);
+            }
+            
+            // Cargar datos de paradas
+            const paradasData = await fetchData('/api/reportes/paradas/');
+            if (paradasData) {
+                updateRecentDowntimes(paradasData.por_tipo || []);
+            }
+            
+            // Cargar datos de producción por línea
+            const produccionData = await fetchData('/api/reportes/produccion/');
+            if (produccionData) {
+                updateProductionChart(produccionData.por_linea || []);
+            }
+            
+            // Inicializar gráficos con datos por defecto
+            initializeCharts();
+        }
+        
+        // Actualizar lista de fallas recientes
+        function updateRecentFailures(failures) {
+            const container = document.getElementById('recent-failures');
+            container.innerHTML = '';
+            
+            if (failures.length === 0) {
+                container.innerHTML = '<div class="text-center py-3 text-muted">No hay fallas recientes</div>';
+                return;
+            }
+            
+            failures.slice(0, 3).forEach(failure => {
+                const severityClass = failure.severidad === 'critica' ? 'bg-danger' : 
+                                    failure.severidad === 'alta' ? 'bg-warning' : 'bg-info';
+                
+                const item = document.createElement('div');
+                item.className = 'list-group-item recent-item';
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <h6 class="mb-1">${failure.codigo || 'Falla sin código'}</h6>
+                        <span class="status-badge ${severityClass}">${failure.severidad || 'media'}</span>
+                    </div>
+                    <p class="mb-1">${failure.descripcion || 'Sin descripción'}</p>
+                    <small class="text-muted">
+                        <i class="fas fa-history me-1"></i> Detectada: ${new Date(failure.timestamp).toLocaleString()}
+                    </small>
+                `;
+                container.appendChild(item);
+            });
+        }
+        
+        // Actualizar lista de paradas recientes
+        function updateRecentDowntimes(downtimes) {
+            const container = document.getElementById('recent-downtimes');
+            container.innerHTML = '';
+            
+            if (downtimes.length === 0) {
+                container.innerHTML = '<div class="text-center py-3 text-muted">No hay paradas recientes</div>';
+                return;
+            }
+            
+            downtimes.slice(0, 3).forEach(downtime => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item recent-item';
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <h6 class="mb-1">${downtime.tipo || 'Tipo no especificado'}</h6>
+                        <small class="text-muted">${downtime.cantidad || 0} ocurrencias</small>
+                    </div>
+                    <p class="mb-1">Duración total: ${downtime.duracion || 0} minutos</p>
+                `;
+                container.appendChild(item);
+            });
+        }
+        
+        // Actualizar gráfico de producción
+        function updateProductionChart(productionData) {
+            if (!productionChart) return;
+            
+            const labels = productionData.map(item => item.linea__nombre || 'Línea desconocida');
+            const data = productionData.map(item => item.unidades || 0);
+            
+            productionChart.data.labels = labels;
+            productionChart.data.datasets[0].data = data;
+            productionChart.update();
+        }
+        
+        // Inicializar gráficos
+        function initializeCharts() {
+            // Production by Line Chart
+            const productionCtx = document.getElementById('productionChart').getContext('2d');
+            productionChart = new Chart(productionCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Línea 1', 'Línea 2', 'Línea 3', 'Línea 4'],
+                    datasets: [{
+                        label: 'Unidades Producidas',
+                        data: [4250, 3520, 2870, 1908],
+                        backgroundColor: [
+                            'rgba(52, 152, 219, 0.7)',
+                            'rgba(46, 204, 113, 0.7)',
+                            'rgba(155, 89, 182, 0.7)',
+                            'rgba(241, 196, 15, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgb(52, 152, 219)',
+                            'rgb(46, 204, 113)',
+                            'rgb(155, 89, 182)',
+                            'rgb(241, 196, 15)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Unidades'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // Downtime Distribution Chart
+            const downtimeCtx = document.getElementById('downtimeChart').getContext('2d');
+            downtimeChart = new Chart(downtimeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Mecánicas', 'Eléctricas', 'Cambio formato', 'Mantenimiento', 'Otros'],
+                    datasets: [{
+                        data: [35, 25, 20, 15, 5],
+                        backgroundColor: [
+                            'rgba(231, 76, 60, 0.8)',
+                            'rgba(241, 196, 15, 0.8)',
+                            'rgba(52, 152, 219, 0.8)',
+                            'rgba(46, 204, 113, 0.8)',
+                            'rgba(149, 165, 166, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(231, 76, 60)',
+                            'rgb(241, 196, 15)',
+                            'rgb(52, 152, 219)',
+                            'rgb(46, 204, 113)',
+                            'rgb(149, 165, 166)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Efficiency by Shift Chart
+            const efficiencyCtx = document.getElementById('efficiencyChart').getContext('2d');
+            efficiencyChart = new Chart(efficiencyCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+                    datasets: [
+                        {
+                            label: 'Turno Mañana',
+                            data: [85, 88, 84, 90, 87, 82],
+                            borderColor: 'rgb(52, 152, 219)',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Turno Tarde',
+                            data: [82, 80, 85, 83, 88, 85],
+                            borderColor: 'rgb(46, 204, 113)',
+                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Turno Noche',
+                            data: [78, 75, 80, 77, 82, 79],
+                            borderColor: 'rgb(155, 89, 182)',
+                            backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: 70,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Eficiencia (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Failures Trend Chart
+            const failuresCtx = document.getElementById('failuresChart').getContext('2d');
+            failuresChart = new Chart(failuresCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Fallas Críticas',
+                        data: [5, 7, 6, 4, 3, 2],
+                        backgroundColor: 'rgba(231, 76, 60, 0.7)'
+                    }, {
+                        label: 'Fallas Altas',
+                        data: [8, 10, 7, 9, 6, 5],
+                        backgroundColor: 'rgba(241, 196, 15, 0.7)'
+                    }, {
+                        label: 'Fallas Medias',
+                        data: [12, 15, 10, 14, 11, 9],
+                        backgroundColor: 'rgba(52, 152, 219, 0.7)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Número de Fallas'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Cargar datos cuando el documento esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar el evento de login
+            document.getElementById('login-form').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                const success = await login(username, password);
+                if (success) {
+                    document.getElementById('login-error').classList.add('hidden');
+                }
+            });
+            
+            // Configurar el evento de logout
+            document.getElementById('logout-btn').addEventListener('click', function(e) {
+                e.preventDefault();
+                logout();
+            });
+            
+            // Verificar si ya hay una sesión activa
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                showDashboard();
+                initializeCharts();
+                loadDashboardData();
+                
+                // Configurar actualización periódica de datos
+                setInterval(loadDashboardData, 300000); // Actualizar cada 5 minutos
+            } else {
+                showLogin();
+            }
+        });
+    </script>
+</body>
+</html>

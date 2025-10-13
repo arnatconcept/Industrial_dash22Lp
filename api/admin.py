@@ -5,7 +5,8 @@ from .admin_config import *
 # Crear la instancia del admin personalizado
 custom_admin_site = AutoTaskAdminSite(name='autotask_admin')
 
-# Registrar todos los modelos con sus ModelAdmins
+# Registrar todos los modelos con sus 
+#custom_admin_site.register(User, CustomUserAdmin)
 custom_admin_site.register(User, UserAdmin)
 custom_admin_site.register(LineaProduccion, LineaProduccionAdmin)
 custom_admin_site.register(Sector, SectorAdmin)
@@ -28,4 +29,13 @@ custom_admin_site.register(PLCEntradaSalida, PLCEntradaSalidaAdmin)
 custom_admin_site.register(PLCLog, PLCLogAdmin)
 custom_admin_site.register(NotificacionApp, NotificacionAppAdmin)
 custom_admin_site.register(DispositivoApp, DispositivoAppAdmin)
-
+custom_admin_site.register(ReunionDiaria, ReunionDiariaAdmin)
+custom_admin_site.register(IncidenciaReunion, IncidenciaReunionAdmin)
+custom_admin_site.register(PlanificacionReunion, PlanificacionReunionAdmin)
+custom_admin_site.register(AccionReunion, AccionReunionAdmin)
+custom_admin_site.register(Turno, TurnoAdmin)
+custom_admin_site.register(Produccion, ProduccionAdmin)
+custom_admin_site.register(ProduccionTurno, ProduccionTurnoAdmin)
+custom_admin_site.register(FallaTurno, FallaTurnoAdmin)
+custom_admin_site.register(ParadaTurno, ParadaTurnoAdmin)
+custom_admin_site.register(NodeRedLog, NodeRedLogAdmin)

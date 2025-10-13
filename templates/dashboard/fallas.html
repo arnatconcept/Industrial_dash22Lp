@@ -1,0 +1,812 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Fallas por Turno{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">⚠️ Dashboard Fallas por Turno</h1>
+    <div class="d-flex align-items-center">
+      <span class="badge bg-warning fs-6 p-2 me-3">
+        <i class="fas fa-clock me-1"></i><span id="lastUpdate">Actualizado ahora</span>
+      </span>
+      <button class="btn btn-sm btn-outline-primary" onclick="init()">
+        <i class="fas fa-sync-alt"></i> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de filtros mejorada con rango de fechas -->
+  <div class="card filter-bar mb-4">
+    <div class="card-body py-3">
+      <form class="d-flex align-items-center flex-wrap gap-2" id="searchFilterForm" onsubmit="return false;">
+        <div class="input-group input-group-sm" style="width: 250px;">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+          <input class="form-control" type="search" placeholder="Buscar fallas..." id="searchInput">
+        </div>
+        
+        <!-- Selector de rango de fechas -->
+        <div class="d-flex align-items-center">
+          <label class="form-label me-2 mb-0 small">Desde:</label>
+          <input type="date" class="form-control form-control-sm" id="filterFechaDesde" style="width: 150px;">
+        </div>
+        
+        <div class="d-flex align-items-center">
+          <label class="form-label me-2 mb-0 small">Hasta:</label>
+          <input type="date" class="form-control form-control-sm" id="filterFechaHasta" style="width: 150px;">
+        </div>
+        
+        <select class="form-select form-select-sm" id="filterLinea" style="width: 180px;">
+          <option value="">Todas las líneas</option>
+          <!-- Las opciones se llenarán dinámicamente -->
+        </select>
+        <select class="form-select form-select-sm" id="filterTurno" style="width: 180px;">
+          <option value="">Todos los turnos</option>
+          <!-- Las opciones se llenarán dinámicamente -->
+        </select>
+        <select class="form-select form-select-sm" id="filterTipo" style="width: 180px;">
+          <option value="">Todos los tipos</option>
+          <option value="electrica">Eléctrica</option>
+          <option value="mecanica">Mecánica</option>
+          <option value="instrumentacion">Instrumentación</option>
+          <option value="proceso">Proceso</option>
+          <option value="calidad">Calidad</option>
+          <option value="operativa">Operativa</option>
+        </select>
+        <select class="form-select form-select-sm" id="filterGravedad" style="width: 180px;">
+          <option value="">Todas las gravedades</option>
+          <option value="leve">Leve</option>
+          <option value="moderada">Moderada</option>
+          <option value="grave">Grave</option>
+          <option value="critica">Crítica</option>
+        </select>
+        
+        <button class="btn btn-sm btn-primary" type="button" onclick="aplicarBusqueda()">
+          <i class="fas fa-filter me-1"></i> Filtrar
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="limpiarFiltros()">
+          <i class="fas fa-times me-1"></i> Limpiar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="row row-cols-1 row-cols-md-4 g-3 mb-4" id="kpi-container"></div>
+
+  <!-- Layout horizontal: Lista + Gráficos -->
+  <div class="content-row">
+    <!-- Columna de lista -->
+    <div class="list-column">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-list me-2"></i>Lista de Fallas
+            <span class="badge bg-primary ms-2" id="contadorFallas">0</span>
+          </h6>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-success" onclick="nuevaFalla()" title="Nueva Falla">
+              <i class="fas fa-plus"></i>
+            </button>
+            <button class="btn btn-outline-secondary" onclick="exportarFallas()" title="Exportar">
+              <i class="fas fa-download"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="enhanced-list" id="listaFallasContainer">
+            <!-- La lista se cargará aquí dinámicamente -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna de gráficos - 3 columnas -->
+    <div class="charts-column">
+      <div class="charts-grid">
+        <!-- Gráfico de distribución por línea -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Por Línea</h6>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chartLinea"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico de distribución por tipo -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Por Tipo</h6>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chartTipo"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico de distribución por gravedad -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Por Gravedad</h6>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chartGravedad"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const API_BASE = "/api";
+  let token = localStorage.getItem("access_token");
+  let fallasData = [];
+  let chartInstances = {};
+
+  // Configuraciones basadas en el modelo
+  const tipoConfig = {
+    'electrica': { label: 'Eléctrica', color: '#ff6b6b' },
+    'mecanica': { label: 'Mecánica', color: '#4ecdc4' },
+    'instrumentacion': { label: 'Instrumentación', color: '#45b7d1' },
+    'proceso': { label: 'Proceso', color: '#96ceb4' },
+    'calidad': { label: 'Calidad', color: '#feca57' },
+    'operativa': { label: 'Operativa', color: '#ff9ff3' }
+  };
+
+  const gravedadConfig = {
+    'leve': { class: 'bg-success', label: 'Leve', color: '#28a745' },
+    'moderada': { class: 'bg-warning', label: 'Moderada', color: '#ffc107' },
+    'grave': { class: 'bg-danger', label: 'Grave', color: '#dc3545' },
+    'critica': { class: 'bg-dark', label: 'Crítica', color: '#343a40' }
+  };
+
+  function logout(){
+    localStorage.clear();
+    window.location.href = "/login.html";
+  }
+
+  async function fetchAPI(endpoint) {
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if(response.status === 401){ logout(); }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      return [];
+    }
+  }
+
+  function actualizarTimestamp() {
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent = 
+      `Actualizado: ${now.toLocaleTimeString()}`;
+  }
+
+  // Función para validar el rango de fechas
+
+  function validarRangoFechas() {
+      const fechaDesde = document.getElementById('filterFechaDesde').value;
+      const fechaHasta = document.getElementById('filterFechaHasta').value;
+      
+      if (fechaDesde && fechaHasta) {
+          if (fechaDesde > fechaHasta) {
+              alert('La fecha "Desde" no puede ser posterior a la fecha "Hasta"');
+              return false;
+          }
+          
+          // Validar que el rango no sea demasiado amplio (opcional)
+          const desde = new Date(fechaDesde);
+          const hasta = new Date(fechaHasta);
+          const diffTime = Math.abs(hasta - desde);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays > 365) {
+              if (!confirm(`Estás solicitando un rango de ${diffDays} días. ¿Estás seguro de que quieres cargar tantos datos?`)) {
+                  return false;
+              }
+          }
+      }
+      return true;
+  }
+
+  function formatDate(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+  }
+
+  // Función para establecer fechas por defecto (sin incluir hoy)
+  function establecerFechasPorDefecto() {
+    const today = new Date();
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
+    
+    // Formatear como YYYY-MM-DD
+    const formatDate = (date) => date.toISOString().split('T')[0];
+    
+    document.getElementById('filterFechaDesde').value = formatDate(lastWeek);
+    document.getElementById('filterFechaHasta').value = formatDate(today);
+  }
+
+ // En el código JavaScript del template, modificar la función loadFallas
+async function loadFallas() {
+      try {
+          showLoading('Cargando fallas...');
+          
+          // Validar rango de fechas antes de continuar
+          if (!validarRangoFechas()) {
+              hideLoading();
+              return;
+          }
+          
+          // Construir URL con parámetros de filtro
+          let url = "/api/fallas-turno/";
+          const params = new URLSearchParams();
+          
+          const fechaDesde = document.getElementById('filterFechaDesde').value;
+          const fechaHasta = document.getElementById('filterFechaHasta').value;
+          const linea = document.getElementById('filterLinea').value;
+          const turno = document.getElementById('filterTurno').value;
+          const tipo = document.getElementById('filterTipo').value;
+          const gravedad = document.getElementById('filterGravedad').value;
+          const busqueda = document.getElementById('searchInput').value;
+          
+          // Solo agregar parámetros si tienen valor
+          if (fechaDesde) params.append('fecha_desde', fechaDesde);
+          if (fechaHasta) params.append('fecha_hasta', fechaHasta);
+          if (linea) params.append('linea_id', linea);
+          if (turno) params.append('turno_id', turno);
+          if (tipo) params.append('tipo', tipo);
+          if (gravedad) params.append('gravedad', gravedad);
+          if (busqueda) params.append('busqueda', busqueda);
+          
+          console.log('Parámetros de búsqueda:', params.toString());
+          
+          if (params.toString()) {
+              url += `?${params.toString()}`;
+          }
+          
+          const response = await fetch(url, {
+              headers: { 
+                  "Authorization": `Bearer ${token}`,
+                  "Content-Type": "application/json"
+              }
+          });
+          
+          if(response.status === 401){ 
+              logout(); 
+              return;
+          }
+          
+          if (!response.ok) {
+              throw new Error(`Error ${response.status}: ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          fallasData = data;
+
+          // Resto del código permanece igual...
+          renderKPIs(data);
+          renderListaFallas(data);
+          renderCharts(data);
+          
+          // Cargar opciones de filtro (solo una vez al inicio)
+          if (!document.getElementById('filterLinea').hasChildNodes() || document.getElementById('filterLinea').children.length <= 1) {
+              cargarOpcionesFiltro(data);
+          }
+          
+          actualizarTimestamp();
+          
+          return data.length;
+      } catch (error) {
+          console.error('Error loading fallas:', error);
+          showError('Error al cargar las fallas: ' + error.message);
+      } finally {
+          hideLoading();
+      }
+  }
+
+  function renderKPIs(data) {
+    const kpiContainer = document.getElementById("kpi-container");
+    
+    // Calcular KPIs basados en el modelo FallaTurno
+    const totalFallas = data.reduce((sum, f) => sum + f.cantidad, 0);
+    const fallasCriticas = data.filter(f => f.gravedad === 'critica').reduce((sum, f) => sum + f.cantidad, 0);
+    const totalDuracion = data.reduce((sum, f) => sum + (f.duracion_minutos || 0), 0);
+    const lineasAfectadas = new Set(data.map(f => f.linea_nombre)).size;
+
+    const kpis = [
+      { 
+        title: "Total Fallas", 
+        value: totalFallas, 
+        color: "primary", 
+        icon: "fas fa-exclamation-triangle",
+        subtitle: "Registros"
+      },
+      { 
+        title: "Fallas Críticas", 
+        value: fallasCriticas, 
+        color: "danger", 
+        icon: "fas fa-fire",
+        subtitle: "Gravedad crítica"
+      },
+      { 
+        title: "Tiempo Parada", 
+        value: `${Math.round(totalDuracion)} min`, 
+        color: "warning", 
+        icon: "fas fa-clock",
+        subtitle: "Duración total"
+      },
+      { 
+        title: "Líneas Afectadas", 
+        value: lineasAfectadas, 
+        color: "info", 
+        icon: "fas fa-industry",
+        subtitle: "Líneas con fallas"
+      }
+    ];
+    
+    kpiContainer.innerHTML = '';
+
+    kpis.forEach(kpi => {
+      const div = document.createElement('div');
+      div.classList.add('col');
+      div.innerHTML = `
+        <div class="card kpi-card h-100 border-0 shadow-sm">
+          <div class="card-body text-center p-3">
+            <div class="icon-wrapper bg-${kpi.color} bg-opacity-10 rounded-circle mx-auto mb-2 p-2">
+              <i class="${kpi.icon} fs-4 text-${kpi.color}"></i>
+            </div>
+            <h4 class="mb-1 fw-bold">${kpi.value}</h4>
+            <small class="text-muted">${kpi.title}</small>
+            ${kpi.subtitle ? `<div class="x-small text-muted mt-1">${kpi.subtitle}</div>` : ''}
+          </div>
+        </div>
+      `;
+      kpiContainer.appendChild(div);
+    });
+  }
+
+  function renderListaFallas(lista){
+    const container = document.getElementById("listaFallasContainer");
+    const contador = document.getElementById("contadorFallas");
+    
+    // Contar total de fallas (sumando la cantidad de cada registro)
+    const totalFallas = lista.reduce((sum, f) => sum + f.cantidad, 0);
+    contador.textContent = totalFallas;
+    
+    container.innerHTML = '';
+
+    if (lista.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-inbox fa-3x mb-3"></i>
+          <p class="mb-0">No se encontraron fallas</p>
+          <small>Intenta ajustar los filtros de búsqueda</small>
+        </div>
+      `;
+      return;
+    }
+
+    lista.forEach(item => {
+      const tipo = tipoConfig[item.tipo] || { label: item.tipo, color: '#6c757d' };
+      const gravedad = gravedadConfig[item.gravedad] || { class: 'bg-secondary', label: 'No especificada', color: '#6c757d' };
+      const fecha = new Date(item.fecha).toLocaleDateString('es-ES');
+
+      const div = document.createElement('div');
+      div.classList.add('list-item');
+      div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div class="flex-grow-1">
+            <h6 class="mb-1 fw-bold">${tipo.label} - ${item.linea_nombre}</h6>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              <span class="badge ${gravedad.class}">
+                ${gravedad.label}
+              </span>
+              <span class="badge bg-light text-dark border">
+                ${item.cantidad} falla(s)
+              </span>
+              <span class="badge bg-light text-dark border">
+                ${item.turno_nombre}
+              </span>
+              ${item.duracion_minutos ? `<span class="badge bg-light text-dark border">${item.duracion_minutos} min</span>` : ''}
+            </div>
+          </div>
+          <div class="text-end">
+            <small class="text-muted">${fecha}</small>
+            <br>
+            <small class="text-muted">#${item.id}</small>
+          </div>
+        </div>
+        
+        <div class="row small text-muted mb-2">
+          <div class="col-6">
+            <i class="fas fa-cogs me-1"></i>
+            <strong>Equipo:</strong> ${item.equipo_nombre || 'No especificado'}
+          </div>
+          <div class="col-6">
+            <i class="fas fa-user me-1"></i>
+            <strong>Reportó:</strong> ${item.creado_por || 'Sistema'}
+          </div>
+        </div>
+        
+        <div class="small">
+          ${item.descripcion ? `<div class="mb-1"><strong>Descripción:</strong> ${item.descripcion}</div>` : ''}
+          ${item.accion_correctiva ? `<div class="mb-1"><strong>Acción Correctiva:</strong> ${item.accion_correctiva}</div>` : ''}
+          ${item.fuente_dato ? `<div class="mb-1"><strong>Fuente:</strong> ${item.fuente_dato}</div>` : ''}
+        </div>
+        
+        <div class="mt-3 pt-2 border-top">
+          <button class="btn btn-sm btn-outline-primary" onclick="verDetalleFalla(${item.id})">
+            <i class="fas fa-eye me-1"></i>Ver Detalles
+          </button>
+          <button class="btn btn-sm btn-outline-warning ms-1" onclick="editarFalla(${item.id})">
+            <i class="fas fa-edit me-1"></i>Editar
+          </button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function renderCharts(data) {
+    renderChartLinea(data);
+    renderChartTipo(data);
+    renderChartGravedad(data);
+  }
+
+  function renderChartLinea(data) {
+    const ctx = document.getElementById('chartLinea').getContext('2d');
+    
+    // Agrupar por línea y sumar cantidad
+    const lineas = {};
+    data.forEach(f => {
+      const linea = f.linea_nombre;
+      lineas[linea] = (lineas[linea] || 0) + f.cantidad;
+    });
+
+    const labels = Object.keys(lineas);
+    const valores = Object.values(lineas);
+
+    if (chartInstances['linea']) {
+      chartInstances['linea'].destroy();
+    }
+
+    chartInstances['linea'] = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: valores,
+          backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              padding: 10
+            }
+          }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  function renderChartTipo(data) {
+      const ctx = document.getElementById('chartTipo').getContext('2d');
+      
+      // Agrupar por tipo y sumar cantidad
+      const tipos = {};
+      data.forEach(f => {
+          tipos[f.tipo] = (tipos[f.tipo] || 0) + f.cantidad;
+      });
+
+      const labels = Object.keys(tipos).map(t => tipoConfig[t]?.label || t);
+      const valores = Object.values(tipos);
+      const colores = Object.keys(tipos).map(t => tipoConfig[t]?.color || '#6c757d');
+
+      if (chartInstances['tipo']) {
+          chartInstances['tipo'].destroy();
+      }
+
+      chartInstances['tipo'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+              labels: labels,
+              datasets: [{
+                  label: 'Cantidad de Fallas',
+                  data: valores,
+                  backgroundColor: colores,
+                  borderWidth: 0
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  y: {
+                      beginAtZero: true,
+                      ticks: {
+                          stepSize: 1
+                      }
+                  }
+              },
+              plugins: {
+                  legend: {
+                      display: false
+                  }
+              }
+          }
+      });
+  }
+
+  function renderChartGravedad(data) {
+      const ctx = document.getElementById('chartGravedad').getContext('2d');
+      
+      // Agrupar por gravedad y sumar cantidad
+      const gravedades = {};
+      data.forEach(f => {
+          gravedades[f.gravedad] = (gravedades[f.gravedad] || 0) + f.cantidad;
+      });
+
+      const labels = Object.keys(gravedades).map(g => gravedadConfig[g]?.label || g);
+      const valores = Object.values(gravedades);
+      const colores = Object.keys(gravedades).map(g => gravedadConfig[g]?.color || '#6c757d');
+
+      if (chartInstances['gravedad']) {
+          chartInstances['gravedad'].destroy();
+      }
+
+      chartInstances['gravedad'] = new Chart(ctx, {
+          type: 'pie',
+          data: {
+              labels: labels,
+              datasets: [{
+                  data: valores,
+                  backgroundColor: colores,
+                  borderWidth: 2,
+                  borderColor: '#fff'
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                  legend: {
+                      position: 'bottom',
+                      labels: {
+                          boxWidth: 12,
+                          padding: 10
+                      }
+                  }
+              }
+          }
+      });
+  }
+
+  function cargarOpcionesFiltro(data) {
+    // Cargar líneas
+    const selectLinea = document.getElementById('filterLinea');
+    const lineas = [...new Set(data.map(f => f.linea))].filter(l => l);
+    
+    // Limpiar opciones actuales (excepto la primera)
+    selectLinea.innerHTML = '<option value="">Todas las líneas</option>';
+    
+    lineas.forEach(lineaId => {
+      const linea = data.find(f => f.linea === lineaId);
+      if (linea) {
+        const option = document.createElement('option');
+        option.value = lineaId;
+        option.textContent = linea.linea_nombre;
+        selectLinea.appendChild(option);
+      }
+    });
+
+    // Cargar turnos
+    const selectTurno = document.getElementById('filterTurno');
+    const turnos = [...new Set(data.map(f => f.turno))].filter(t => t);
+    
+    selectTurno.innerHTML = '<option value="">Todos los turnos</option>';
+    
+    turnos.forEach(turnoId => {
+      const turno = data.find(f => f.turno === turnoId);
+      if (turno) {
+        const option = document.createElement('option');
+        option.value = turnoId;
+        option.textContent = turno.turno_nombre;
+        selectTurno.appendChild(option);
+      }
+    });
+  }
+
+  function aplicarBusqueda(){
+    loadFallas(); // Recargar con los filtros actuales
+  }
+
+  function limpiarFiltros(){
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterLinea').value = '';
+    document.getElementById('filterTurno').value = '';
+    document.getElementById('filterTipo').value = '';
+    document.getElementById('filterGravedad').value = '';
+    
+    // Restablecer el rango de fechas por defecto
+    establecerFechasPorDefecto();
+    
+    loadFallas();
+  }
+
+  // Funciones auxiliares para loading y errores
+  function showLoading(message = 'Cargando...') {
+    // Implementar según tu sistema de loading
+    console.log('Loading:', message);
+  }
+
+  function hideLoading() {
+    // Implementar según tu sistema de loading
+    console.log('Loading complete');
+  }
+
+  function showError(message) {
+    alert('Error: ' + message);
+  }
+
+  // Funciones para futura implementación
+  function verDetalleFalla(id) {
+    const falla = fallasData.find(f => f.id === id);
+    if (falla) {
+      alert(`Detalles de falla #${id}: ${falla.descripcion}`);
+      // Implementar modal de detalles aquí
+    }
+  }
+
+  function editarFalla(id) {
+    // Implementar edición de falla
+    alert(`Editar falla #${id}`);
+  }
+
+  function nuevaFalla() {
+    // Implementar creación de nueva falla
+    alert('Nueva falla');
+  }
+
+  function exportarFallas() {
+    // Implementar exportación de datos
+    alert('Exportar fallas');
+  }
+
+  // Inicialización
+  async function init() {
+    await loadFallas();
+  }
+
+  // Búsqueda en tiempo real
+  document.addEventListener('DOMContentLoaded', function() {
+    // Establecer fechas por defecto al cargar la página
+    establecerFechasPorDefecto();
+    
+    init();
+    
+    // Auto-actualización cada 2 minutos
+    setInterval(init, 120000);
+    
+    // Búsqueda en tiempo real
+    document.getElementById('searchInput').addEventListener('input', aplicarBusqueda);
+  });
+</script>
+
+<style>
+  .icon-wrapper {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .list-item {
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .list-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: var(--secondary-color);
+  }
+
+  .list-item:last-child {
+    border-bottom: none;
+  }
+
+  .enhanced-list {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  .x-small {
+    font-size: 0.7rem;
+  }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    height: 100%;
+  }
+
+  .chart-card {
+    height: 100%;
+    margin-bottom: 0;
+  }
+
+  .chart-container {
+    height: 200px;
+    position: relative;
+  }
+
+  /* Responsive para gráficos */
+  @media (max-width: 1400px) {
+    .charts-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 1200px) {
+    .charts-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .charts-column {
+      flex: 0 0 350px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .charts-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .enhanced-list {
+      max-height: 400px;
+    }
+  }
+
+  /* Ajustes para gráficos más pequeños en 3 columnas */
+  .charts-grid .chart-container {
+    height: 180px;
+  }
+
+  .charts-grid .card-header {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .charts-grid .card-header h6 {
+    font-size: 0.85rem;
+  }
+</style>
+{% endblock %}

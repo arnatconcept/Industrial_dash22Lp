@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 400px;">
+  <h2 class="mb-4 text-center">Iniciar Sesión</h2>
+
+  {% if form.errors %}
+    <div class="alert alert-danger">
+      Usuario o contraseña incorrectos.
+    </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      {{ form.username.label_tag }}
+      <input type="text" name="{{ form.username.name }}" value="{{ form.username.value|default_if_none:'' }}" class="form-control">
+    </div>
+    <div class="mb-3">
+      {{ form.password.label_tag }}
+      <input type="password" name="{{ form.password.name }}" value="" class="form-control">
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Login</button>
+  </form>
+</div>
+{% endblock %}

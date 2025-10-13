@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Maintech Dashboard{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      overflow-x: hidden;
+    }
+    .sidebar {
+      position: fixed;
+      top: 56px; /* altura del navbar */
+      bottom: 0;
+      left: 0;
+      width: 220px;
+      background-color: #343a40;
+      padding-top: 20px;
+    }
+    .sidebar .nav-link {
+      color: #adb5bd;
+    }
+    .sidebar .nav-link.active,
+    .sidebar .nav-link:hover {
+      color: #fff;
+      background-color: #495057;
+    }
+    .content {
+      margin-left: 220px; /* espacio del sidebar */
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{% url 'dashboard_index' %}">Maintech</a>
+    </div>
+  </nav>
+
+  <!-- Sidebar -->
+  <div class="sidebar d-flex flex-column">
+    <ul class="nav nav-pills flex-column mb-auto">
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'produccion_dashboard' %}active{% endif %}" href="{% url 'produccion_dashboard' %}">
+          📈 Producción
+        </a>
+      </li>
+      <li>
+        <a class="nav-link {% if request.resolver_match.url_name == 'mantenimiento_dashboard' %}active{% endif %}" href="{% url 'mantenimiento_dashboard' %}">
+          🛠️ Mantenimiento
+        </a>
+      </li>
+      <li>
+        <a class="nav-link {% if request.resolver_match.url_name == 'inventario_dashboard' %}active{% endif %}" href="{% url 'inventario_dashboard' %}">
+          📦 Inventario
+        </a>
+      </li>
+      <li>
+        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard_fallas' %}active{% endif %}" href="{% url 'dashboard_fallas' %}">
+          ⚠️ Fallas
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Contenido -->
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

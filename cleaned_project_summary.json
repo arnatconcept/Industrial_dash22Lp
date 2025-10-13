@@ -1,0 +1,33 @@
+{
+    "project_root": "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend",
+    "requirements_file": "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\requirements.txt",
+    "apps": [
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\api",
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\charts"
+    ],
+    "models_files": [
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\api\\models.py",
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\charts\\models.py"
+    ],
+    "views_files": [
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\api\\views.py",
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\charts\\views.py"
+    ],
+    "urls_files": [
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\api\\urls.py",
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\autotask_backend\\urls.py",
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\charts\\urls.py"
+    ],
+    "templates_folders": [
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\templates",
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\new_django_structure\\templates"
+    ],
+    "static_folders": [
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\static",
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\new_django_structure\\static"
+    ],
+    "migrations": [
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\api\\migrations",
+        "C:\\Users\\Ary\\Documents\\import_git\\maintech_backend\\charts\\migrations"
+    ]
+}

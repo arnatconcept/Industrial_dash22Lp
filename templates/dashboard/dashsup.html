@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Dashboard - Sistema de Gestión de Producción</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root{
+            --primary:#2c3e50;
+            --accent:#3498db;
+            --card-shadow: 0 6px 20px rgba(0,0,0,0.08);
+            --muted:#6c757d;
+        }
+        body{ background:#f5f7f9; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+        .navbar{ background:var(--primary); }
+        .navbar .navbar-brand, .navbar .nav-link { color: #fff !important; }
+        .card { border: none; border-radius: 10px; box-shadow: var(--card-shadow); }
+        .kpi-value { font-size: 1.8rem; font-weight:700; }
+        .kpi-label { color: var(--muted); text-transform:uppercase; font-size:0.75rem; letter-spacing:0.6px; }
+        .status-badge { padding: .25rem .6rem; border-radius: 999px; font-weight:600; font-size: .75rem; }
+        .recent-item { transition: all .15s; }
+        .recent-item:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.04);}
+        .hidden { display:none; }
+        .small-muted { font-size: .85rem; color: var(--muted); }
+        .chart-container { height: 300px; position: relative; }
+        @media (max-width: 768px){ .chart-container{ height:220px } }
+    </style>
+</head>
+<body>
+    <!-- NAV -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <i class="fas fa-industry me-2"></i>
+                Sistema de Producción
+            </a>
+
+            <div class="ms-auto d-flex align-items-center">
+                <span class="text-white me-3" id="current-user">Invitado</span>
+                <button id="logout-btn" class="btn btn-outline-light btn-sm hidden">Cerrar sesión</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Login col (visible si no hay token) -->
+            <div id="login-col" class="col-lg-4">
+                <div class="card p-4">
+                    <h5 class="mb-3">Iniciar sesión</h5>
+                    <form id="login-form" autocomplete="off">
+                        <div class="mb-3">
+                            <label class="form-label">Usuario</label>
+                            <input id="login-username" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Contraseña</label>
+                            <input id="login-password" type="password" class="form-control" required />
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input id="login-remember" type="checkbox" class="form-check-input" />
+                            <label class="form-check-label">Recordarme</label>
+                        </div>
+                        <button class="btn btn-primary w-100" type="submit"><i class="fas fa-key me-2"></i>Entrar</button>
+                        <div id="login-error" class="alert alert-danger mt-3 hidden" role="alert">Credenciales inválidas.</div>
+                    </form>
+                </div>
+
+                <div class="mt-3">
+                    <div class="card p-3">
+                        <h6 class="mb-2">Estado de integración</h6>
+                        <ul class="list-unstyled small-muted mb-0">
+                            <li><i class="fas fa-check-circle text-success me-2"></i> Node-RED endpoints listos</li>
+                            <li><i class="fas fa-check-circle text-success me-2"></i> KPIs del supervisor disponibles</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard content -->
+            <div id="dashboard-col" class="col-lg-8 hidden">
+                <!-- KPIs row -->
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card p-3">
+                            <div class="kpi-label">Unidades producidas (periodo)</div>
+                            <div class="kpi-value" id="kpi-unidades">—</div>
+                            <div class="small-muted" id="kpi-unidades-sub">Últimos días</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card p-3">
+                            <div class="kpi-label">Eficiencia promedio</div>
+                            <div class="kpi-value" id="kpi-eficiencia">—</div>
+                            <div class="small-muted" id="kpi-eficiencia-sub">Promedio vs meta</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card p-3">
+                            <div class="kpi-label">Tiempo paradas (min)</div>
+                            <div class="kpi-value" id="kpi-paradas">—</div>
+                            <div class="small-muted" id="kpi-paradas-sub">Suma de duraciones</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="row g-3 mt-3">
+                    <div class="col-lg-7">
+                        <div class="card p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong>Producción por Línea</strong>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" data-range="7">7d</button>
+                                    <button class="btn btn-sm btn-outline-secondary me-1 active" data-range="30">30d</button>
+                                    <button class="btn btn-sm btn-outline-secondary" data-range="90">90d</button>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="productionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-5">
+                        <div class="card p-3 mb-3">
+                            <strong>Distribución de Paradas</strong>
+                            <div class="chart-container mt-2">
+                                <canvas id="downtimeChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card p-3">
+                            <strong>Fallas recientes</strong>
+                            <div id="recent-failures" class="list-group list-group-flush mt-2">
+                                <div class="text-center py-3 text-muted">Cargando...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supervisor row -->
+                <div class="row g-3 mt-3">
+                    <div class="col-lg-6">
+                        <div class="card p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong>Alertas supervisor</strong>
+                                <small class="small-muted">últimos 30 días</small>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <div>
+                                    <div class="kpi-label">Alertas</div>
+                                    <div class="kpi-value" id="sup-alertas">—</div>
+                                </div>
+                                <div>
+                                    <div class="kpi-label">% Variables fuera de rango</div>
+                                    <div class="kpi-value" id="sup-fuera-rango">—</div>
+                                </div>
+                            </div>
+                            <hr />
+                            <div>
+                                <strong>Alertas recientes</strong>
+                                <ul id="sup-alertas-list" class="list-group list-group-flush mt-2">
+                                    <li class="list-group-item small-muted">Cargando...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="card p-3 mb-3">
+                            <strong>Top variables fuera de rango</strong>
+                            <div id="sup-vars" class="mt-2">
+                                <div class="text-muted">Cargando...</div>
+                            </div>
+                        </div>
+
+                        <div class="card p-3">
+                            <strong>Activos críticos</strong>
+                            <div id="sup-activos" class="mt-2">
+                                <div class="text-muted">Cargando...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs and node-red -->
+                <div class="row g-3 mt-3">
+                    <div class="col-lg-6">
+                        <div class="card p-3">
+                            <strong>KPIs inspecciones</strong>
+                            <div class="row mt-2">
+                                <div class="col-4">
+                                    <div class="kpi-label">Rutas</div>
+                                    <div class="kpi-value" id="kpi-rutas">—</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="kpi-label">Ejecuciones 7d</div>
+                                    <div class="kpi-value" id="kpi-ejecuciones-7d">—</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="kpi-label">Tiempo prom. (min)</div>
+                                    <div class="kpi-value" id="kpi-tiempo-prom">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="card p-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong>Node-RED Logs (últimos)</strong>
+                                <button id="btn-refresh-logs" class="btn btn-sm btn-outline-secondary">Actualizar</button>
+                            </div>
+                            <div id="node-red-logs" class="mt-2 small-muted">Cargando...</div>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- dashboard-col -->
+        </div>
+    </div>
+
+    <!-- Bootstrap JS (bundle) + fetch polyfill if needed -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+    /************************************************************************
+     * Frontend JS para consumir los endpoints del backend provisto
+     * - Guarda token JWT en localStorage (clave: access_token)
+     * - Endpoints usados:
+     *   /api/token/ (POST)
+     *   /produccion-turno/
+     *   /fallas-turno/
+     *   /paradas-turno/
+     *   /dashboard/supervisor/
+     *   /dashboard/supervisor/variables-top/
+     *   /dashboard/supervisor/activos-criticos/
+     *   /dashboard/supervisor/alertas-recientes/
+     *   /dashboard/kpi-inspecciones/
+     *   /node-red-logs/
+     ************************************************************************/
+
+    // -------------------- Utils --------------------
+    const API_PREFIX = '/api'; // ajusta si tu API tiene prefijo distinto
+    const formatNumber = (n) => new Intl.NumberFormat('es-ES').format(n);
+    const formatPercent = (n) => (typeof n === 'number' ? n.toFixed(1) + '%' : n);
+
+    function getAuthHeader() {
+        const token = localStorage.getItem('access_token');
+        return token ? { 'Authorization': 'Bearer ' + token } : {};
+    }
+
+    async function fetchJSON(url, opts = {}) {
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, getAuthHeader(), opts.headers || {});
+        const finalOpts = Object.assign({}, opts, { headers });
+        try {
+            const res = await fetch(url, finalOpts);
+            if (res.status === 401) {
+                // token inválido o expirado
+                logout();
+                throw new Error('No autorizado. Sesión cerrada.');
+            }
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error('Error en la API: ' + res.status + ' ' + text);
+            }
+            return await res.json();
+        } catch (err) {
+            console.error(url, err);
+            throw err;
+        }
+    }
+
+    function showElement(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hideElement(id) { document.getElementById(id).classList.add('hidden'); }
+
+    // -------------------- Auth --------------------
+    document.addEventListener('DOMContentLoaded', () => {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            onLoginSuccess(localStorage.getItem('username') || 'Usuario');
+        } else {
+            document.getElementById('login-col').classList.remove('hidden');
+        }
+    });
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        if (!username || !password) return;
+
+        try {
+            const res = await fetch('/api/token/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!res.ok) {
+                document.getElementById('login-error').classList.remove('hidden');
+                throw new Error('Credenciales inválidas');
+            }
+
+            const data = await res.json();
+            localStorage.setItem('access_token', data.access);
+            localStorage.setItem('username', username);
+            document.getElementById('login-error').classList.add('hidden');
+            onLoginSuccess(username);
+        } catch (err) {
+            console.error('Login error', err);
+        }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        logout();
+    });
+
+    function logout() {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('username');
+        document.getElementById('current-user').textContent = 'Invitado';
+        document.getElementById('dashboard-col').classList.add('hidden');
+        document.getElementById('login-col').classList.remove('hidden');
+        document.getElementById('logout-btn').classList.add('hidden');
+    }
+
+    function onLoginSuccess(username) {
+        document.getElementById('current-user').textContent = username;
+        document.getElementById('login-col').classList.add('hidden');
+        document.getElementById('dashboard-col').classList.remove('hidden');
+        document.getElementById('logout-btn').classList.remove('hidden');
+
+        // iniciar carga de datos
+        initializeDashboard();
+    }
+
+    // -------------------- Charts (Chart.js instances) --------------------
+    let productionChart = null;
+    let downtimeChart = null;
+
+    function initCharts() {
+        // Production Chart (bar)
+        const prodCtx = document.getElementById('productionChart').getContext('2d');
+        if (productionChart) productionChart.destroy();
+        productionChart = new Chart(prodCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Unidades', data: [] }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend:{ display:false } },
+                scales: { y: { beginAtZero:true, title:{ display:true, text:'Unidades' } } }
+            }
+        });
+
+        // Downtime chart (doughnut)
+        const downCtx = document.getElementById('downtimeChart').getContext('2d');
+        if (downtimeChart) downtimeChart.destroy();
+        downtimeChart = new Chart(downCtx, {
+            type: 'doughnut',
+            data: { labels: [], datasets: [{ data: [] }] },
+            options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } } }
+        });
+    }
+
+    // -------------------- Data loaders --------------------
+    async function loadDashboardAll() {
+        try {
+            // Cargar KPIs agregados supervisor
+            const sup = await fetchJSON(API_PREFIX + '/dashboard/supervisor/?days=30');
+            document.getElementById('sup-alertas').textContent = sup.alertas ?? 0;
+            document.getElementById('sup-fuera-rango').textContent = formatPercent(sup.porcentaje_fuera_rango ?? 0);
+
+            // Top variables
+            const vars = await fetchJSON(API_PREFIX + '/dashboard/supervisor/variables-top/?days=30');
+            renderTopVariables(vars);
+
+            // Activos críticos
+            const activos = await fetchJSON(API_PREFIX + '/dashboard/supervisor/activos-criticos/?days=30');
+            renderActivosCriticos(activos);
+
+            // Alertas recientes
+            const alertas = await fetchJSON(API_PREFIX + '/dashboard/supervisor/alertas-recientes/?limit=6');
+            renderAlertasRecientes(alertas);
+
+            // KPI inspecciones
+            const kpiIns = await fetchJSON(API_PREFIX + '/dashboard/kpi-inspecciones/');
+            document.getElementById('kpi-rutas').textContent = kpiIns.rutas_totales ?? 0;
+            document.getElementById('kpi-ejecuciones-7d').textContent = kpiIns.ejecuciones_7d ?? 0;
+            document.getElementById('kpi-tiempo-prom').textContent = kpiIns.tiempo_promedio ?? 0;
+
+            // Production data (agregado por línea últimos N días)
+            await loadProductionByLine(30);
+
+            // Paradas aggregated for downtime chart
+            await loadParadasDistribucion(30);
+
+            // Fallas recientes
+            await loadFallasRecientes();
+
+            // Node-RED logs
+            await loadNodeRedLogs();
+
+            // KPIs calculados: unidades totales, eficiencia promedio y tiempo paradas
+            await calculateKpisSummary(30);
+
+        } catch (err) {
+            console.error('Error cargando dashboard', err);
+        }
+    }
+
+    async function initializeDashboard() {
+        initCharts();
+        await loadDashboardAll();
+
+        // refresco periódico
+        window.dashboardInterval = setInterval(loadDashboardAll, 1000 * 60 * 2); // cada 2 minutos
+    }
+
+    // ---------- Production by line ----------
+    async function loadProductionByLine(days = 30) {
+        // Hacemos petición a produccion-turno/ filtrando por fecha (backend acepta fecha= exacta;
+        // si no tienes endpoint de agregación puedes exponer uno o agrupar en frontend).
+        // Aquí asumimos que el endpoint devuelve múltiples registros y agrupamos en frontend por linea_nombre.
+        try {
+            // Si tu API soporta rango por query params, adapta la URL. Aquí pedimos todos y filtramos por fecha si es necesario.
+            const res = await fetchJSON(API_PREFIX + '/produccion-turno/?'); // opcional: agregar ?fecha=...
+            // Agrupar por linea_nombre
+            const map = {};
+            (res || []).forEach(r => {
+                const nombre = r.linea_nombre || (r.linea && r.linea.nombre) || 'Línea desconocida';
+                map[nombre] = (map[nombre] || 0) + (r.cantidad || 0);
+            });
+            const labels = Object.keys(map);
+            const data = labels.map(l => map[l]);
+
+            productionChart.data.labels = labels;
+            productionChart.data.datasets[0].data = data;
+            productionChart.update();
+        } catch (err) {
+            console.warn('No se pudo obtener producción por línea:', err);
+        }
+    }
+
+    // ---------- Paradas distribución ----------
+    async function loadParadasDistribucion(days = 30) {
+        try {
+            const res = await fetchJSON(API_PREFIX + '/paradas-turno/?'); // adapta si tienes agregados
+            const map = {};
+            (res || []).forEach(p => {
+                const motivo = p.motivo || 'Otros';
+                map[motivo] = (map[motivo] || 0) + 1;
+            });
+
+            const labels = Object.keys(map);
+            const data = labels.map(k => map[k]);
+
+            downtimeChart.data.labels = labels;
+            downtimeChart.data.datasets[0].data = data;
+            downtimeChart.update();
+        } catch (err) {
+            console.warn('No se pudo cargar distribución de paradas:', err);
+        }
+    }
+
+    // ---------- Fallas recientes ----------
+    async function loadFallasRecientes() {
+        const container = document.getElementById('recent-failures');
+        container.innerHTML = '<div class="text-center py-3 text-muted">Cargando...</div>';
+        try {
+            const res = await fetchJSON(API_PREFIX + '/fallas-turno/?'); // considera ?ordering=-fecha en backend
+            const items = (res || []).sort((a,b) => new Date(b.fecha) - new Date(a.fecha)).slice(0,5);
+            if (!items.length) {
+                container.innerHTML = '<div class="text-center py-3 text-muted">No hay fallas recientes</div>';
+                return;
+            }
+            container.innerHTML = '';
+            items.forEach(f => {
+                const el = document.createElement('div');
+                el.className = 'list-group-item recent-item';
+                const gravedadClass = f.gravedad === 'critica' ? 'bg-danger text-white status-badge' :
+                                      f.gravedad === 'grave' ? 'bg-warning text-dark status-badge' : 'bg-info text-white status-badge';
+                el.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <div><strong>${f.tipo || 'Falla'}</strong> <div class="small-muted">${f.linea_nombre || ''} — ${f.turno_nombre || ''}</div></div>
+                        <div class="text-end">
+                            <div class="${gravedadClass}">${f.gravedad}</div>
+                            <div class="small-muted mt-1">${formatNumber(f.cantidad || 0)} ocurr.</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 small-muted">${f.descripcion ? (f.descripcion.length > 120 ? f.descripcion.slice(0,120)+'…' : f.descripcion) : ''}</div>
+                `;
+                container.appendChild(el);
+            });
+        } catch (err) {
+            container.innerHTML = '<div class="text-danger p-2">Error cargando fallas</div>';
+        }
+    }
+
+    // ---------- Node-RED logs ----------
+    async function loadNodeRedLogs(limit=6) {
+        const el = document.getElementById('node-red-logs');
+        el.textContent = 'Cargando...';
+        try {
+            let res = await fetchJSON(API_PREFIX + '/node-red-logs/?page_size=' + limit);
+            // Si tu ViewSet está paginado, ajusta parsing. Aquí soportamos array o paginación results.
+            if (res && res.results) res = res.results;
+            const items = (res || []).slice(0, limit);
+            if (!items.length) { el.textContent = 'No hay logs recientes'; return; }
+
+            const html = items.map(it => {
+                const when = new Date(it.fecha_recepcion || it.fecha_recepcion).toLocaleString();
+                return `<div class="mb-2">
+                    <div><strong>${(it.tipo_dato || '').toUpperCase()}</strong> <span class="small-muted">• ${when}</span></div>
+                    <div class="small-muted">${String(it.mensaje || '').slice(0,150)}</div>
+                </div>`;
+            }).join('');
+            el.innerHTML = html;
+        } catch (err) {
+            el.innerHTML = '<div class="text-danger">Error cargando logs</div>';
+        }
+    }
+
+    document.getElementById('btn-refresh-logs').addEventListener('click', () => loadNodeRedLogs());
+
+    // ---------- Supervisor widgets ----------
+    function renderTopVariables(vars) {
+        const container = document.getElementById('sup-vars');
+        if (!vars || !vars.length) { container.innerHTML = '<div class="small-muted">Sin datos</div>'; return; }
+        container.innerHTML = '';
+        vars.forEach(v => {
+            const li = document.createElement('div');
+            li.className = 'd-flex justify-content-between align-items-center mb-2';
+            li.innerHTML = `<div>${v.variable__nombre}</div><div class="badge bg-primary">${v.total_fuera}</div>`;
+            container.appendChild(li);
+        });
+    }
+
+    function renderActivosCriticos(items) {
+        const c = document.getElementById('sup-activos');
+        if (!items || !items.length) { c.innerHTML = '<div class="small-muted">Sin datos</div>'; return; }
+        c.innerHTML = '';
+        items.forEach(it => {
+            const node = document.createElement('div');
+            node.className = 'd-flex justify-content-between mb-2';
+            node.innerHTML = `<div>${it['ejecucion__ruta__activo_tipo'] || 'Activo'} #${it['ejecucion__ruta__activo_id'] || ''}</div><div class="badge bg-danger">${it.alertas}</div>`;
+            c.appendChild(node);
+        });
+    }
+
+    function renderAlertasRecientes(alertas) {
+        const list = document.getElementById('sup-alertas-list');
+        list.innerHTML = '';
+        if (!alertas || !alertas.length) {
+            list.innerHTML = '<li class="list-group-item small-muted">Sin alertas recientes</li>';
+            return;
+        }
+        alertas.forEach(a => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.innerHTML = `<div class="d-flex justify-content-between">
+                <div><strong>${a.tipo}</strong><div class="small-muted">${a.descripcion ? (a.descripcion.length>80 ? a.descripcion.slice(0,80)+'…' : a.descripcion) : ''}</div></div>
+                <div class="small-muted">${a.fecha}</div>
+            </div>`;
+            list.appendChild(li);
+        });
+    }
+
+    // ---------- KPIs summary calculated in frontend ----------
+    async function calculateKpisSummary(days=30) {
+        try {
+            const [produccion, paradas] = await Promise.all([
+                fetchJSON(API_PREFIX + '/produccion-turno/?'),
+                fetchJSON(API_PREFIX + '/paradas-turno/?')
+            ]);
+            // Unidades totales:
+            const unidades = (produccion || []).reduce((s,i) => s + (i.cantidad || 0), 0);
+            document.getElementById('kpi-unidades').textContent = formatNumber(unidades);
+
+            // Eficiencia promedio (promedio campo eficiencia si existe, sino calculamos si meta_produccion presente)
+            let efList = [];
+            (produccion || []).forEach(p => {
+                if (typeof p.eficiencia === 'number') efList.push(p.eficiencia);
+                else if (p.meta_produccion && p.meta_produccion>0) efList.push((p.cantidad/p.meta_produccion)*100);
+            });
+            const efProm = efList.length ? (efList.reduce((a,b)=>a+b,0)/efList.length) : 0;
+            document.getElementById('kpi-eficiencia').textContent = efProm ? efProm.toFixed(1)+'%' : '—';
+
+            // Tiempo de paradas total
+            const totalParadas = (paradas || []).reduce((s,i) => s + (i.duracion_minutos || 0), 0);
+            document.getElementById('kpi-paradas').textContent = formatNumber(totalParadas);
+
+        } catch (err) {
+            console.warn('Error calculando KPIs resumen', err);
+        }
+    }
+
+    // -------------------- Inicialización final --------------------
+    // Inicializar charts vacíos (por si el usuario ya logueado)
+    initCharts();
+
+    </script>
+</body>
+</html>
