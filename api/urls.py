@@ -32,11 +32,13 @@ router.register(r'incidencias-reunion', IncidenciaReunionViewSet)
 router.register(r'planificaciones-reunion', PlanificacionReunionViewSet)
 router.register(r'acciones-reunion', AccionReunionViewSet)
 router.register(r'produccion', ProduccionViewSet, basename='produccion')
+
+router.register(r'produccion-tiempo-real', ProduccionTiempoRealViewSet, basename='produccion-tiempo-real')
+
 router.register(r'produccion-turno', ProduccionTurnoViewSet, basename='produccionturno') 
 router.register(r'fallas-turno', FallaTurnoViewSet, basename='fallaturno') 
 router.register(r'paradas-turno', ParadaTurnoViewSet, basename='paradaturno') 
 router.register(r'node-red-logs', NodeRedLogViewSet)
-
 urlpatterns = [
     path('', include(router.urls)),
     path('user-info/', views.user_info, name='user-info'),
