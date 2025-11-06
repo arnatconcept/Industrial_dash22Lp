@@ -654,6 +654,7 @@ class ResultadoInspeccion(models.Model):
                     objeto_id=self.ejecucion.ruta.activo_id
                 )
 
+
     
 class NotificacionApp(models.Model):
     TIPO_NOTIFICACION_CHOICES = [
@@ -763,6 +764,58 @@ class Produccion(models.Model):
         # Calcular automáticamente la eficiencia si hay meta definida
         if self.meta_produccion and self.meta_produccion > 0:
             self.eficiencia = (self.fabricacion_toneladas / self.meta_produccion) * 100
+        super().save(*args, **kwargs)
+
+class ProduccionTiempoReal(models.Model):
+    timestamp = models.DateTimeField(auto_now_add=False)  # Timestamp específico de Node-Red
+    fecha = models.DateField()  # Para facilitar filtros por fecha
+    turno = models.ForeignKey(Turno, on_delete=models.CASCADE)
+    linea = models.ForeignKey(LineaProduccion, on_delete=models.CASCADE)
+    supervisor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    producto = models.CharField(max_length=100, blank=True)
+    
+    # Métricas acumuladas hasta este timestamp
+    bandejas = models.PositiveIntegerField(null=True, blank=True)
+    fabricacion_toneladas = models.FloatField(null=True, blank=True)
+    fabricacion_scrap = models.FloatField(null=True, blank=True)
+    apilado_vagones = models.PositiveIntegerField(null=True, blank=True)
+    apilado_toneladas = models.FloatField(null=True, blank=True)
+    coccion_vagones = models.PositiveIntegerField(null=True, blank=True)
+    coccion_toneladas = models.FloatField(null=True, blank=True)
+    desapilado_primera = models.PositiveIntegerField(null=True, blank=True)
+    desapilado_segunda = models.PositiveIntegerField(null=True, blank=True)
+    desapilado_toneladas = models.FloatField(null=True, blank=True)
+    
+    # Campos calculados
+    meta_produccion = models.PositiveIntegerField(null=True, blank=True)
+    eficiencia = models.FloatField(null=True, blank=True)
+    
+    # Metadata
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fuente_dato = models.CharField(max_length=20, default="node_red_tiempo_real")
+    es_cierre_turno = models.BooleanField(default=False)  # Para identificar el último registro del turno
+
+    class Meta:
+        verbose_name_plural = "Producción Tiempo Real"
+        indexes = [
+            models.Index(fields=['timestamp', 'linea']),
+            models.Index(fields=['fecha', 'linea', 'turno']),
+            models.Index(fields=['fecha', 'timestamp']),  # Para búsquedas por rango
+        ]
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"TiempoReal {self.linea} - {self.timestamp}"
+
+    def save(self, *args, **kwargs):
+        # Calcular fecha a partir del timestamp si no se proporciona
+        if self.timestamp and not self.fecha:
+            self.fecha = self.timestamp.date()
+            
+        # Calcular eficiencia si hay meta
+        if self.meta_produccion and self.meta_produccion > 0:
+            self.eficiencia = (self.fabricacion_toneladas / self.meta_produccion) * 100
+            
         super().save(*args, **kwargs)
 
 class ProduccionTurno(models.Model):
