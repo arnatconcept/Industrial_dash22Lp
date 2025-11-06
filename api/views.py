@@ -970,8 +970,8 @@ class ProduccionViewSet(viewsets.ModelViewSet):
         # Filtros específicos para el dashboard
         fecha_desde = self.request.query_params.get('fecha_desde')
         fecha_hasta = self.request.query_params.get('fecha_hasta')
-        linea_id = self.request.query_params.get('linea')  # Changed from 'linea' to 'linea_id' for clarity
-        turno_id = self.request.query_params.get('turno')  # Changed from 'turno' to 'turno_id' for clarity
+        linea_id = self.request.query_params.get('linea')
+        turno_id = self.request.query_params.get('turno')
         supervisor = self.request.query_params.get('supervisor')
         producto = self.request.query_params.get('producto')
         busqueda = self.request.query_params.get('busqueda')
@@ -983,15 +983,17 @@ class ProduccionViewSet(viewsets.ModelViewSet):
         elif fecha_hasta:
             queryset = queryset.filter(fecha__lte=fecha_hasta)
 
-        # FIX: Use the string IDs directly, don't try to access .id on strings
         if linea_id:
-            queryset = queryset.filter(linea_id=linea_id)  # Use linea_id directly
+            queryset = queryset.filter(linea_id=linea_id)
         if turno_id:
-            queryset = queryset.filter(turno_id=turno_id)  # Use turno_id directly
+            queryset = queryset.filter(turno_id=turno_id)
         if supervisor:
             queryset = queryset.filter(supervisor__username__icontains=supervisor)
+            
+        # 🔥 NUEVO FILTRO MEJORADO PARA PRODUCTOS MÚLTIPLES
         if producto:
-            queryset = queryset.filter(producto__icontains=producto)
+            queryset = self._filtrar_por_producto(queryset, producto)
+            
         if busqueda:
             queryset = queryset.filter(
                 Q(producto__icontains=busqueda) |
@@ -999,33 +1001,91 @@ class ProduccionViewSet(viewsets.ModelViewSet):
             )
             
         return queryset.order_by('-fecha', '-fecha_creacion')
-
-
-    def create(self, request, *args, **kwargs):
-        print("=== INCOMING REQUEST DATA ===")
-        print(f"Data: {request.data}")
-        print(f"Content-Type: {request.content_type}")
-        print("=============================")
-        
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            print("=== SERIALIZER ERRORS ===")
-            print(serializer.errors)
-            print("=========================")
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-        except Exception as e:
-            print(f"=== ERROR IN PERFORM_CREATE: {str(e)} ===")
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
-    def perform_create(self, serializer):
-        serializer.save()
+    def _filtrar_por_producto(self, queryset, producto_buscado):
+        """
+        Filtra por producto, manejando tanto productos simples como códigos compuestos
+        Formato compuesto: "18x18x33|20&20x20x40|25"
+        """
+        from django.db.models import Q
+        
+        # Si el producto buscado es un código compuesto, buscar exactamente
+        if '|' in producto_buscado or '&' in producto_buscado:
+            return queryset.filter(producto=producto_buscado)
+        
+        # Si es un producto simple, buscar en diferentes posiciones del código compuesto
+        condiciones = Q()
+        
+        # 1. Producto exacto (caso simple)
+        condiciones |= Q(producto=producto_buscado)
+        
+        # 2. Producto al inicio del código compuesto: "PRODUCTO|..."
+        condiciones |= Q(producto__startswith=f"{producto_buscado}|")
+        
+        # 3. Producto en medio del código compuesto: "...&PRODUCTO|..."
+        condiciones |= Q(producto__contains=f"&{producto_buscado}|")
+        
+        # 4. Producto al final del código compuesto: "...&PRODUCTO"
+        condiciones |= Q(producto__endswith=f"&{producto_buscado}")
+        
+        # 5. Producto como parte de un código más complejo
+        condiciones |= Q(producto__regex=rf'\b{producto_buscado}\b')
+        
+        return queryset.filter(condiciones)
+    
+class ProduccionTiempoRealViewSet(viewsets.ModelViewSet):
+    queryset = ProduccionTiempoReal.objects.select_related('turno', 'linea', 'supervisor').all()
+    serializer_class = ProduccionTiempoRealSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['linea', 'turno', 'producto', 'es_cierre_turno']
+    search_fields = ['producto']
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filtros específicos para el dashboard de tiempo real
+        fecha_desde = self.request.query_params.get('fecha_desde')
+        fecha_hasta = self.request.query_params.get('fecha_hasta')
+        timestamp_desde = self.request.query_params.get('timestamp_desde')
+        timestamp_hasta = self.request.query_params.get('timestamp_hasta')
+        linea_id = self.request.query_params.get('linea')
+        turno_id = self.request.query_params.get('turno')
+        busqueda = self.request.query_params.get('busqueda')
+        solo_cierres = self.request.query_params.get('solo_cierres')
+        
+        # Filtro por rango de fechas
+        if fecha_desde and fecha_hasta:
+            queryset = queryset.filter(fecha__range=[fecha_desde, fecha_hasta])
+        elif fecha_desde:
+            queryset = queryset.filter(fecha__gte=fecha_desde)
+        elif fecha_hasta:
+            queryset = queryset.filter(fecha__lte=fecha_hasta)
+            
+        # FILTRO POR RANGO DE TIMESTAMP (NUEVO)
+        if timestamp_desde and timestamp_hasta:
+            queryset = queryset.filter(timestamp__range=[timestamp_desde, timestamp_hasta])
+        elif timestamp_desde:
+            queryset = queryset.filter(timestamp__gte=timestamp_desde)
+        elif timestamp_hasta:
+            queryset = queryset.filter(timestamp__lte=timestamp_hasta)
 
-
+        # Filtros adicionales
+        if linea_id:
+            queryset = queryset.filter(linea_id=linea_id)
+        if turno_id:
+            queryset = queryset.filter(turno_id=turno_id)
+        if solo_cierres:
+            queryset = queryset.filter(es_cierre_turno=True)
+            
+        if busqueda:
+            queryset = queryset.filter(
+                Q(producto__icontains=busqueda) |
+                Q(linea__nombre__icontains=busqueda) |
+                Q(turno__nombre__icontains=busqueda)
+            )
+            
+        return queryset.order_by('-timestamp', '-fecha_creacion')
 
 class ProduccionTurnoViewSet(viewsets.ModelViewSet):
     queryset = ProduccionTurno.objects.all()
