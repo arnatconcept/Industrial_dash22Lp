@@ -1,4 +1,6 @@
+
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Dashboard Producción Inteligente{% endblock %}
 
@@ -35,6 +37,25 @@
           <label class="form-label me-2 mb-0 small">Hasta:</label>
           <input type="date" class="form-control form-control-sm" id="fechaFin" style="width: 150px;">
         </div>
+
+        <!-- Controles de hora (inicialmente visibles) -->
+        <div class="d-flex align-items-center" id="controlesHora">
+          <label class="form-label me-2 mb-0 small">Hora Desde:</label>
+          <input type="time" class="form-control form-control-sm" id="horaInicio" style="width: 120px;">
+        </div>
+
+        <div class="d-flex align-items-center" id="controlesHoraFin">
+          <label class="form-label me-2 mb-0 small">Hora Hasta:</label>
+          <input type="time" class="form-control form-control-sm" id="horaFin" style="width: 120px;">
+        </div>
+
+        <!-- Selector de tipo de datos -->
+        <div class="btn-group">
+          <button class="btn btn-sm btn-outline-primary" id="botonTipoDatos" 
+                  onclick="cambiarTipoDatos(tipoDatosActual === 'turno' ? 'tiempo_real' : 'turno')">
+            <i class="fas fa-calendar-alt me-1"></i> Por Turno
+          </button>
+        </div>
         
         <select class="form-select form-select-sm" id="filterLinea" style="width: 180px;">
           <option value="">Todas las Líneas</option>
@@ -42,6 +63,8 @@
           <option value="{{ linea.id }}">{{ linea.nombre }}</option>
           {% endfor %}
         </select>
+        
+        <!-- Controles de turno (siempre visibles pero con lógica diferente) -->
         <select class="form-select form-select-sm" id="filterTurno" style="width: 180px;">
           <option value="">Todos los Turnos</option>
         </select>
@@ -226,9 +249,6 @@
             </div>
           </div>
         </div>
-
-
-
       </div>
     </div>
 
@@ -539,6 +559,14 @@
 @media (max-width: 768px) {
   .enhanced-list {
     max-height: 400px;
+  }
+  
+  .d-flex.flex-wrap {
+    justify-content: center;
+  }
+  
+  .d-flex.align-items-center {
+    margin-bottom: 0.5rem;
   }
 }
 </style>
@@ -913,6 +941,7 @@ let metricasProduccion = {};
 let alertasProduccion = [];
 let vistaEficienciaActual = 'diario';
 let datosEficiencia = {};
+let tipoDatosActual = 'turno';
 
 // Configuraciones de colores
 const colorConfig = {
@@ -933,6 +962,63 @@ const configProduccion = {
 
 // Variables globales
 let alertsCollapsed = false;
+
+function obtenerEndpoint() {
+  if (tipoDatosActual === 'tiempo_real') {
+    return "/produccion-tiempo-real/";
+  }
+  return "/produccion/";
+}
+
+function construirParametros() {
+  const fechaInicio = document.getElementById("fechaInicio").value;
+  const fechaFin = document.getElementById("fechaFin").value;
+  const horaInicio = document.getElementById("horaInicio").value;
+  const horaFin = document.getElementById("horaFin").value;
+  const lineaFilter = document.getElementById("filterLinea").value;
+  const turnoFilter = document.getElementById("filterTurno").value;
+  const busqueda = document.getElementById("searchInput").value;
+
+  const params = new URLSearchParams();
+
+  // Parámetros específicos para cada tipo de datos
+  if (tipoDatosActual === 'tiempo_real') {
+    // Para tiempo real: usar timestamp
+    if (fechaInicio && horaInicio) {
+      const timestampDesde = `${fechaInicio}T${horaInicio}:00`;
+      params.append('timestamp_desde', timestampDesde);
+    }
+    if (fechaFin && horaFin) {
+      const timestampHasta = `${fechaFin}T${horaFin}:00`;
+      params.append('timestamp_hasta', timestampHasta);
+    }
+    
+    // También incluir filtros de fecha para respaldo
+    if (fechaInicio) params.append('fecha_desde', fechaInicio);
+    if (fechaFin) params.append('fecha_hasta', fechaFin);
+    
+  } else {
+    // Para datos por turno: usar fechas normales
+    if (fechaInicio) params.append('fecha_desde', fechaInicio);
+    if (fechaFin) params.append('fecha_hasta', fechaFin);
+    if (lineaFilter) params.append('linea', lineaFilter);
+    if (turnoFilter) params.append('turno', turnoFilter);
+  }
+  
+  // Parámetros comunes
+  if (busqueda) params.append('busqueda', busqueda);
+  
+  // Agregar parámetros para limitar y ordenar
+  params.append('ordering', tipoDatosActual === 'tiempo_real' ? '-timestamp' : '-fecha,-fecha_creacion');
+  params.append('page_size', '200');
+  
+  return params;
+}
+
+function getTodayDate() {
+  return new Date().toISOString().split('T')[0];
+}
+
 
 // Función para mostrar/ocultar alertas
 function toggleAlerts() {
@@ -988,7 +1074,8 @@ function actualizarTimestamp() {
   const now = new Date();
   const lastUpdateElement = document.getElementById('lastUpdate');
   if (lastUpdateElement) {
-    lastUpdateElement.textContent = `Actualizado: ${now.toLocaleTimeString()}`;
+    const tipoTexto = tipoDatosActual === 'tiempo_real' ? 'Tiempo Real' : 'Turnos';
+    lastUpdateElement.textContent = `Actualizado: ${now.toLocaleTimeString()} (${tipoTexto})`;
   }
 }
 
@@ -1021,18 +1108,73 @@ async function fetchAPI(endpoint) {
 function validarRangoFechas() {
   const fechaInicio = document.getElementById('fechaInicio');
   const fechaFin = document.getElementById('fechaFin');
+  const horaInicio = document.getElementById('horaInicio');
+  const horaFin = document.getElementById('horaFin');
   
   if (!fechaInicio || !fechaFin) {
     console.warn('Elementos de fecha no encontrados');
     return true;
   }
   
+  // Validación de fechas
   if (fechaInicio.value && fechaFin.value && fechaInicio.value > fechaFin.value) {
     showError('La fecha "Desde" no puede ser posterior a la fecha "Hasta"');
     return false;
   }
+
+  // Validación de horas (solo para tiempo real)
+  if (tipoDatosActual === 'tiempo_real') {
+    if (fechaInicio.value === fechaFin.value && horaInicio.value && horaFin.value && horaInicio.value > horaFin.value) {
+      showError('La hora "Desde" no puede ser posterior a la hora "Hasta" en el mismo día');
+      return false;
+    }
+  }
+
   return true;
 }
+
+// Agregar función para establecer horas por defecto en tiempo real
+function establecerHorasPorDefecto() {
+  if (tipoDatosActual === 'tiempo_real') {
+    const horaInicio = document.getElementById('horaInicio');
+    const horaFin = document.getElementById('horaFin');
+    
+    if (horaInicio && horaFin) {
+      // Establecer horario laboral típico
+      horaInicio.value = '06:00';
+      horaFin.value = '22:00';
+    }
+  }
+}
+
+// Modificar la inicialización para incluir horas por defecto
+document.addEventListener("DOMContentLoaded", function() {
+  try {
+    establecerFechasPorDefecto();
+    cambiarTipoDatos('turno');
+    cargarDatos();
+    
+    // Configurar intervalo de actualización automática para tiempo real
+    setInterval(() => {
+      if (tipoDatosActual === 'tiempo_real') {
+        cargarDatos();
+      }
+    }, 60000); // Actualizar cada minuto en tiempo real
+    
+    let searchTimeout;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(aplicarFiltros, 500);
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error en inicialización:', error);
+    showError('Error al inicializar la aplicación: ' + error.message);
+  }
+});
 
 // Calcular métricas de producción
 function calcularMetricasProduccion(produccion) {
@@ -1126,8 +1268,115 @@ function renderizarEficienciaOperativa() {
   renderKPIs();
   
   // Renderizar gráfico de tendencia
-  renderChartEficienciaOperativa();
-  actualizarControlesLineasEficiencia();
+  if (tipoDatosActual === 'tiempo_real') {
+    renderChartEficienciaTiempoReal();
+  } else {
+    renderChartEficienciaOperativa();
+    actualizarControlesLineasEficiencia();
+  }
+}
+
+function renderChartEficienciaTiempoReal() {
+  const canvas = document.getElementById('chartEficienciaOperativa');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  const datosPorHora = {};
+  produccionData.forEach(p => {
+    if (p.timestamp) {
+      const hora = new Date(p.timestamp).toLocaleTimeString('es-ES', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+      
+      if (!datosPorHora[hora]) {
+        datosPorHora[hora] = [];
+      }
+      datosPorHora[hora].push(p);
+    }
+  });
+
+  const labels = Object.keys(datosPorHora).sort();
+  const valores = labels.map(hora => {
+    const datosHora = datosPorHora[hora];
+    const eficiencias = datosHora.map(p => p.eficiencia || 0).filter(e => e > 0);
+    return eficiencias.length ? 
+      (eficiencias.reduce((sum, e) => sum + e, 0) / eficiencias.length).toFixed(1) : 0;
+  });
+
+  if (chartInstances['eficienciaOperativa']) {
+    chartInstances['eficienciaOperativa'].destroy();
+  }
+
+  chartInstances['eficienciaOperativa'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Eficiencia Promedio por Hora',
+          data: valores,
+          borderColor: '#36b9cc',
+          backgroundColor: '#36b9cc20',
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: '#36b9cc',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1,
+          pointHoverRadius: 6,
+          fill: true,
+          tension: 0.4
+        },
+        {
+          label: 'Meta Eficiencia (90%)',
+          data: Array(labels.length).fill(configProduccion.metaEficiencia),
+          borderColor: '#dc3545',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          borderDash: [5, 5],
+          tension: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          min: 50,
+          max: 100,
+          ticks: {
+            callback: function(value) {
+              return value + '%';
+            }
+          },
+          title: {
+            display: true,
+            text: 'Eficiencia (%)'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Hora del Día'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'top'
+        }
+      }
+    }
+  });
 }
 
 function renderChartOperacionesVagones() {
@@ -1857,35 +2106,14 @@ async function cargarDatos() {
 
     showLoading('Cargando datos de producción...');
     
-    const fechaInicio = document.getElementById("fechaInicio").value;
-    const fechaFin = document.getElementById("fechaFin").value;
-    const lineaFilter = document.getElementById("filterLinea").value;
-    const turnoFilter = document.getElementById("filterTurno").value;
-    const busqueda = document.getElementById("searchInput").value;
-
-    // Construir URLs con parámetros
-    let prodUrl = "/produccion/";
+    const endpoint = obtenerEndpoint();
+    const params = construirParametros();
     
-    const params = new URLSearchParams();
-    if (fechaInicio) params.append('fecha_desde', fechaInicio);
-    if (fechaFin) params.append('fecha_hasta', fechaFin);
-    if (lineaFilter) params.append('linea', lineaFilter);
-    if (turnoFilter) params.append('turno', turnoFilter);
-    if (busqueda) params.append('busqueda', busqueda);
+    const url = `${endpoint}?${params.toString()}`;
+    console.log('Cargando datos desde:', url);
     
-    // Agregar parámetros para limitar y ordenar
-    params.append('ordering', '-fecha,-fecha_creacion');
-    params.append('page_size', '100');
-    
-    const queryString = params.toString();
-    console.log('Parámetros de búsqueda:', queryString);
-    
-    if (queryString) {
-      prodUrl += `?${queryString}`;
-    }
-
     // Cargar datos de producción
-    produccionData = await fetchAPI(prodUrl);
+    produccionData = await fetchAPI(url);
 
     // Verificar si tenemos datos
     if (produccionData.length === 0) {
@@ -1893,7 +2121,9 @@ async function cargarDatos() {
       return;
     }
 
-    // Renderizar componentes
+    console.log(`Datos cargados: ${produccionData.length} registros (${tipoDatosActual})`);
+
+    // Renderizar componentes según el tipo de datos
     renderizarEficienciaOperativa();
     renderLineas();
     renderResumenScrap();
@@ -1905,7 +2135,6 @@ async function cargarDatos() {
         cargarLineasDesdeDatos();
     }
 
-    
     // Cargar opciones de filtro solo si es necesario
     if (!document.getElementById('filterTurno').hasChildNodes() || 
         document.getElementById('filterTurno').children.length <= 1) {
@@ -1924,6 +2153,53 @@ async function cargarDatos() {
     hideLoading();
   }
 }
+
+// Actualizar la función cambiarTipoDatos para manejar mejor los controles
+function cambiarTipoDatos(tipo) {
+  tipoDatosActual = tipo;
+  
+  // Actualizar controles de hora según el tipo
+  const controlesHora = document.getElementById('controlesHora');
+  const controlesHoraFin = document.getElementById('controlesHoraFin');
+  
+  if (controlesHora && controlesHoraFin) {
+    if (tipo === 'tiempo_real') {
+      controlesHora.style.display = 'flex';
+      controlesHoraFin.style.display = 'flex';
+    } else {
+      controlesHora.style.display = 'none';
+      controlesHoraFin.style.display = 'none';
+    }
+  }
+  
+  // Actualizar texto del botón
+  const botonTipo = document.getElementById('botonTipoDatos');
+  if (botonTipo) {
+    const icono = tipo === 'tiempo_real' ? 'fa-clock' : 'fa-calendar-alt';
+    const texto = tipo === 'tiempo_real' ? ' Tiempo Real' : ' Por Turno';
+    botonTipo.innerHTML = `<i class="fas ${icono} me-1"></i>${texto}`;
+    
+    // Cambiar clase del botón para indicar estado activo
+    if (tipo === 'tiempo_real') {
+      botonTipo.classList.remove('btn-outline-primary');
+      botonTipo.classList.add('btn-primary');
+    } else {
+      botonTipo.classList.remove('btn-primary');
+      botonTipo.classList.add('btn-outline-primary');
+    }
+  }
+  
+  // Limpiar filtros de turno cuando se cambia a tiempo real
+  if (tipo === 'tiempo_real') {
+    const filterTurno = document.getElementById('filterTurno');
+    if (filterTurno) filterTurno.value = '';
+  }
+  
+  // Recargar datos
+  cargarDatos();
+  console.log("Tipo de datos actual:", tipoDatosActual);
+}
+
 
 function renderLineas() {
   const container = document.getElementById("lineasContainer");
@@ -2113,8 +2389,14 @@ function renderCharts() {
   renderChartEficiencia();
   renderChartScrap();
   renderChartPrediccion();
-  renderChartEficienciaOperativa();
-  renderChartOperacionesVagones(); 
+  
+  if (tipoDatosActual === 'tiempo_real') {
+    renderChartEficienciaTiempoReal();
+  } else {
+    renderChartEficienciaOperativa();
+  }
+  
+  renderChartOperacionesVagones();
 }
 
 function renderChartProduccionLinea() {
@@ -2538,16 +2820,16 @@ function showError(message) {
 // Inicialización
 document.addEventListener("DOMContentLoaded", function() {
   try {
-    // Establecer fechas por defecto al cargar la página
     establecerFechasPorDefecto();
-    
-    // Cargar datos iniciales
+    cambiarTipoDatos('turno');
     cargarDatos();
     
-    // Auto-actualización cada 2 minutos
-    setInterval(cargarDatos, 120000);
+    setInterval(() => {
+      if (tipoDatosActual === 'tiempo_real') {
+        cargarDatos();
+      }
+    }, 120000);
     
-    // Búsqueda en tiempo real con debounce
     let searchTimeout;
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
