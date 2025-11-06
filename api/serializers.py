@@ -854,6 +854,29 @@ class ProduccionSerializer(serializers.ModelSerializer):
             'desapilado_primera', 'desapilado_segunda', 'desapilado_toneladas',
             'meta_produccion', 'eficiencia', 'fecha_creacion', 'fuente_dato'
         ]
+
+
+class ProduccionTiempoRealSerializer(serializers.ModelSerializer):
+    linea_nombre = serializers.CharField(source='linea.nombre', read_only=True)
+    turno_nombre = serializers.CharField(source='turno.nombre', read_only=True)
+    supervisor_username = serializers.CharField(source='supervisor.username', read_only=True)
+    hora = serializers.SerializerMethodField()  # Campo adicional para hora
+
+    class Meta:
+        model = ProduccionTiempoReal
+        fields = [
+            'id', 'timestamp', 'fecha', 'hora', 'turno', 'turno_nombre', 
+            'linea', 'linea_nombre', 'supervisor', 'supervisor_username', 
+            'producto', 'bandejas', 'fabricacion_toneladas', 'fabricacion_scrap',
+            'apilado_vagones', 'apilado_toneladas', 'coccion_vagones', 
+            'coccion_toneladas', 'desapilado_primera', 'desapilado_segunda',
+            'desapilado_toneladas', 'meta_produccion', 'eficiencia', 
+            'fecha_creacion', 'fuente_dato', 'es_cierre_turno'
+        ]
+
+    def get_hora(self, obj):
+        return obj.timestamp.time() if obj.timestamp else None
+
 class NodeRedProduccionSerializer(serializers.Serializer):
     fecha = serializers.DateField()
     turno_id = serializers.IntegerField()
